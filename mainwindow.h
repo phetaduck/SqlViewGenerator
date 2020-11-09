@@ -21,6 +21,8 @@ public:
 private:
     Ui::MainWindow *ui;
     std::unordered_map<QObject*, std::shared_ptr<TableColumnView>> m_columnViews;
-    void updateSqlScript();
+
+    void updateSqlScript(const QString& table);
+
     QSqlDatabase dbconn;
 };

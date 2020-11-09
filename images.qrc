@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/img">
+        <file>res/ajax-loader.gif</file>
+        <file>res/clear.png</file>
+        <file>res/add.png</file>
+        <file>res/filter.png</file>
+        <file>res/refresh.png</file>
+        <file>res/outline_save_black_24dp.png</file>
+        <file>res/round_folder_open_black_24dp.png</file>
+        <file>res/round_play_arrow_black_24dp.png</file>
+    </qresource>
+</RCC>
