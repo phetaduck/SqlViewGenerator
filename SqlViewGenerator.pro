@@ -13,6 +13,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     models/asyncsqltablemodel.cpp \
+    models/autosqltablemodel.cpp \
     models/searchablesqltablemodel.cpp \
     tablecolumnview.cpp \
     utils/application.cpp \
@@ -28,6 +29,7 @@ HEADERS += \
     dialogs/authentificationdialog.h \
     mainwindow.h \
     models/asyncsqltablemodel.h \
+    models/autosqltablemodel.h \
     models/searchablesqltablemodel.h \
     tablecolumnview.h \
     utils/application.h \

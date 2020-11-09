@@ -109,7 +109,8 @@ bool AsyncSqlTableModel::_internalSelect(std::function<void ()> callback)
         watcher.disconnect();
         endResetModel();
         m_selectedAtLeastOnce = true;
-        callback();
+        if (callback)
+            callback();
     });
     future = QtConcurrent::run([this]() {
 #ifndef QT_NO_DEBUG

@@ -14,6 +14,7 @@
 #include "sqlsharedutils.h"
 #include "application.h"
 #include "sqlsyntaxhighlighter.h"
+#include "models/autosqltablemodel.h"
 
 template<typename PageClass>
 void createPage(const QString& title) {
@@ -88,9 +89,28 @@ MainWindow::MainWindow(QWidget *parent)
             this, [this](const QModelIndex& current, const QModelIndex&)
     {
         auto table = current.data().toString();
-        auto model = ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(table);
+        auto model = ModelManager::sharedSqlTableModel<AutoSqlTableModel>(table);
         if (!model->isSelectedAtLeastOnce()) {
             model->select();
+            connect(model, &AutoSqlTableModel::newRecords,
+                    this, [this, model](QList<QSqlRecord> newRecords)
+            {
+                for (const auto& record : newRecords) {
+                    QString logText;
+                    QTextStream lts{&logText};
+                    lts << "New row in "
+                        << model->tableName()
+                        << "\n\t";
+                    for (int i = 0; i < record.count(); i++) {
+                        lts << record.fieldName(i)
+                            << ": "
+                            << record.value(i).toString()
+                            << "\n\t";
+                    }
+
+                    ui->pte_Log->appendPlainText(logText);
+                }
+            });
         }
         ui->tv_SelectedTableContents->setModel(model);
 

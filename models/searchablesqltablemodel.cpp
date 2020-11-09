@@ -424,7 +424,7 @@ void SearchableSqlTableModel::getFieldNames() {
     m_fieldNames.clear();
     m_defaultRecord = m_db.record(m_tableName);
     if (m_primaryKey.isEmpty()) {
-        m_primaryKey = m_db.primaryIndex(m_tableName).name();
+        m_primaryKey = m_defaultRecord.fieldName(0);
         if (m_primaryKey.isEmpty()) m_primaryKey = "id";
     }
     for (int i = 0; i < m_defaultRecord.count(); i++) {
