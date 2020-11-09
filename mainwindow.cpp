@@ -73,7 +73,9 @@ MainWindow::MainWindow(QWidget *parent)
         auto settings = Application::app()->settings();
         if (settings.dbName() != dbName) {
             settings.setDbName(dbName);
-            dbconn = ThreadingCommon::DBConn::instance()->db(dbName);
+            auto mgr = ThreadingCommon::DBConn::instance();
+            mgr->setDBName(dbName);
+            dbconn = ThreadingCommon::DBConn::instance()->db();
             if (!dbconn.isOpen()) return;
             auto tables = dbconn.tables();
             tables.sort();
@@ -86,6 +88,12 @@ MainWindow::MainWindow(QWidget *parent)
             this, [this](const QModelIndex& current, const QModelIndex&)
     {
         auto table = current.data().toString();
+        auto model = ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(table);
+        if (!model->isSelectedAtLeastOnce()) {
+            model->select();
+        }
+        ui->tv_SelectedTableContents->setModel(model);
+
         updateSqlScript(table);
     });
 }

@@ -801,7 +801,11 @@ QVariant SearchableSqlTableModel::headerData(int section, Qt::Orientation orient
             out = section;
         }
     } else if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
-        out = m_headerData[section];
+        if (m_headerData.contains(section)) {
+            out = m_headerData[section];
+        } else if (section < m_fieldNames.size()) {
+            out = m_fieldNames[section];
+        }
     } else {
         return ParentModelClass::headerData(section, orientation, role);
     }

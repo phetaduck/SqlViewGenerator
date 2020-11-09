@@ -13,6 +13,7 @@ AuthentificationDialog::AuthentificationDialog(QWidget *parent) :
     ui->le_User->setText(settings.lastLogin());
     ui->le_Password->setText(settings.dbPass());
     ui->sb_Port->setValue(settings.dbPort());
+    ui->cb_Type->setCurrentText(settings.dbType());
 }
 
 AuthentificationDialog::~AuthentificationDialog()
