@@ -1,4 +1,4 @@
-QT       += core gui sql concurrent
+QT       += core gui sql concurrent network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -14,7 +14,7 @@ SOURCES += \
     mainwindow.cpp \
     models/asyncsqltablemodel.cpp \
     models/autosqltablemodel.cpp \
-    models/searchablesqltablemodel.cpp \
+    models/sqltablemodel.cpp \
     tablecolumnview.cpp \
     utils/application.cpp \
     utils/modelmanager.cpp \
@@ -30,7 +30,7 @@ HEADERS += \
     mainwindow.h \
     models/asyncsqltablemodel.h \
     models/autosqltablemodel.h \
-    models/searchablesqltablemodel.h \
+    models/sqltablemodel.h \
     tablecolumnview.h \
     utils/application.h \
     utils/modelmanager.h \

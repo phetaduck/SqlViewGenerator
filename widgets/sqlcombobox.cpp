@@ -1,5 +1,5 @@
 #include "sqlcombobox.h"
-#include <models/searchablesqltablemodel.h>
+#include <models/sqltablemodel.h>
 #include <utils/sqlsharedutils.h>
 
 #include <QTimer>
@@ -59,7 +59,7 @@ void SqlComboBox::setSelectedIndex(const QVariant& data)
     }
 }
 
-SearchableSqlTableModel* SqlComboBox::sqlModel()
+SqlTableModel* SqlComboBox::sqlModel()
 {
     return m_sqlModel;
 }
@@ -70,7 +70,7 @@ auto SqlComboBox::sqlRelation() const -> const QSqlRelation&
 }
 
 
-void SqlComboBox::setSqlData(SearchableSqlTableModel* sqlModel,
+void SqlComboBox::setSqlData(SqlTableModel* sqlModel,
                 const QSqlRelation& sqlRelation)
 {
     m_sqlModel = sqlModel;
@@ -95,7 +95,7 @@ void SqlComboBox::setSqlRelation(const QSqlRelation& sqlRelation)
 {
     m_sqlRelation = sqlRelation;
     if (!m_sqlModel) {
-        m_sqlModel = ModelManager::sharedSqlTableModel<SearchableSqlTableModel>(m_sqlRelation.tableName());
+        m_sqlModel = ModelManager::sharedSqlTableModel<SqlTableModel>(m_sqlRelation.tableName());
         if (!m_sqlModel->isSelectedAtLeastOnce())
             m_sqlModel->select();
         int column = m_sqlModel->fieldIndex(

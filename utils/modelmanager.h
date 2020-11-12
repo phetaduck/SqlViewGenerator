@@ -9,7 +9,7 @@
 #include <memory>
 #include <type_traits>
 
-class SearchableSqlTableModel;
+class SqlTableModel;
 class AsyncSqlTableModel;
 
 /**
@@ -48,7 +48,7 @@ namespace ModelManager
      * Если класс Т наследник SearchableSqlTableModel - все в порядке.
      * В противном случае возвращаемый тип не отпределен. */
     template<typename T>
-    extern typename std::enable_if_t<std::is_base_of_v<SearchableSqlTableModel, T>, T*> /** */
+    extern typename std::enable_if_t<std::is_base_of_v<SqlTableModel, T>, T*> /** */
     sharedSqlTableModel(const QString& tableName) {
         static StaticCache<T> cache = {};
         if (!cache.ModelsMap.contains(tableName)) {

@@ -10,6 +10,8 @@
 #include <QSqlResult>
 #include <QSqlError>
 #include <QDesktopWidget>
+#include <sstream>
+#include <iomanip>
 
 #include "sqlsharedutils.h"
 #include "application.h"
@@ -34,6 +36,16 @@ void connectActionToPageCreation(QAction* action) {
     });
 }
 
+template< typename T >
+std::string int_to_hex( T i )
+{
+  std::stringstream stream;
+  stream << "\\u"
+         << std::setfill ('0') << std::setw(sizeof(T))
+         << std::hex << i;
+  return stream.str();
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -50,6 +62,18 @@ MainWindow::MainWindow(QWidget *parent)
     highlighter = new SQLSyntaxHighlighter(ui->te_Output->document());
 
     ui->pte_Commands->setPlainText(settings.lastCommands());
+    ui->le_pipeName->setText(settings.pipeName());
+
+    connect(ui->pb_connectPipe, &QPushButton::clicked,
+            this, [this]()
+    {
+        auto settings = Application::app()->settings();
+        settings.setPipeName(ui->le_pipeName->text());
+
+        m_pipeConnection = std::make_unique<QLocalSocket>();
+        m_pipeConnection->connectToServer(settings.pipeName(),
+                                          QIODevice::WriteOnly);
+    });
 
     connect(ui->tb_RunCommands, &QToolButton::clicked,
             this, [this]()
@@ -95,20 +119,55 @@ MainWindow::MainWindow(QWidget *parent)
             connect(model, &AutoSqlTableModel::newRecords,
                     this, [this, model](QList<QSqlRecord> newRecords)
             {
+                QJsonArray jsonArray;
                 for (const auto& record : newRecords) {
+                    // logging
                     QString logText;
                     QTextStream lts{&logText};
                     lts << "New row in "
                         << model->tableName()
                         << "\n\t";
+
+                    // JSON
+                    QJsonObject jsonRecord;
+
                     for (int i = 0; i < record.count(); i++) {
-                        lts << record.fieldName(i)
+                        auto fieldName = record.fieldName(i);
+                        auto fieldValue = record.value(i);
+
+                        // JSON
+                        jsonRecord.insert(fieldName, QJsonValue::fromVariant(fieldValue));
+
+                        // LOGGING
+                        lts << fieldName
                             << ": "
-                            << record.value(i).toString()
+                            << fieldValue.toString()
                             << "\n\t";
                     }
 
+                    // JSON
+                    jsonArray.push_back(jsonRecord);
+                    QJsonObject jsonMsg;
+                    jsonMsg.insert("messageType", "ecall");
+                    static int i = 1;
+                    if (i > 1000) {
+                        i = 1;
+                    }
+                    QString num = QString::fromStdString(int_to_hex(i++));
+                    QString packectId {"source:faceid, pid:"};
+                    packectId += num;
+
+                    jsonMsg.insert("packetId", packectId);
+                    jsonMsg.insert(model->tableName(), jsonArray);
+                    QJsonDocument doc {jsonMsg};
+                    auto msg = doc.toJson();
+                    if (m_pipeConnection && m_pipeConnection->isValid()) {
+                        m_pipeConnection->write(msg);
+                    }
+
+                    // LOGGING
                     ui->pte_Log->appendPlainText(logText);
+                    ui->pte_Log->appendPlainText(msg);
                 }
             });
         }

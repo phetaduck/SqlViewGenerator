@@ -1,6 +1,6 @@
 #pragma once
 
-#include "searchablesqltablemodel.h"
+#include "sqltablemodel.h"
 
 #include <QFutureWatcher>
 #include <QtConcurrent>
@@ -16,11 +16,11 @@
  * этой же модели будет проигнорирован.
  * Использование любой стратегии коммита кромей ручной, наверное не лучшая идея.
 */
-class AsyncSqlTableModel : public SearchableSqlTableModel
+class AsyncSqlTableModel : public SqlTableModel
 {
     Q_OBJECT
 public:
-    using SearchableSqlTableModel::SearchableSqlTableModel;
+    using SqlTableModel::SqlTableModel;
     virtual ~AsyncSqlTableModel();
 
     /** @brief Переопределенный метод базового класса*/
@@ -60,7 +60,7 @@ protected:
     /** Создает запрос на обновление */
     QString prepareUpdateStatement() const;
 
-    SearchableSqlTableModel::RowsCollection m_syncRowsCache; ///< Кэш строк на время синхронизации
+    SqlTableModel::RowsCollection m_syncRowsCache; ///< Кэш строк на время синхронизации
 
     QFutureWatcher<bool> watcher; ///< Наблюдатель, по завершении загрузки данных, обновляет интерфейс
     QFuture<bool> future; ///< Объект таски, выполняет работу в отдельном потоке

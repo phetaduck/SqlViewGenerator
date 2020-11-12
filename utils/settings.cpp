@@ -10,6 +10,7 @@ const QString Settings::DbPortKey = "db/port";
 const QString Settings::DbPassKey = "db/pass";
 const QString Settings::LastCommandsKey = "db/last_commands";
 const QString Settings::DbTypeKey = "db/type";
+const QString Settings::PipeNameKey = "pipe/name";
 
 
 Settings::Settings()
@@ -90,3 +91,14 @@ auto Settings::dbType() const -> QString
 {
     return value(DbTypeKey, "QPSQL").toString();
 }
+
+void Settings::setPipeName(const QString &value)
+{
+    setValue(PipeNameKey, value);
+}
+
+auto Settings::pipeName() const -> QString
+{
+    return value(PipeNameKey, "\\\\.\\pipe\\PipeName").toString();
+}
+

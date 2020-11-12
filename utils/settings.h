@@ -23,6 +23,8 @@ public:
     auto lastCommands() const -> QString;
     void setDBType(const QString & value);
     auto dbType() const -> QString;
+    void setPipeName(const QString & value);
+    auto pipeName() const -> QString;
 
 private:
     static const QString LastLoginKey;
@@ -32,4 +34,5 @@ private:
     static const QString DbPassKey;
     static const QString LastCommandsKey;
     static const QString DbTypeKey;
+    static const QString PipeNameKey;
 };

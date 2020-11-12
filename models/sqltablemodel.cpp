@@ -1,4 +1,4 @@
-#include "searchablesqltablemodel.h"
+#include "sqltablemodel.h"
 #include <algorithm>
 #include <QSqlQuery>
 #include <QSqlError>
@@ -10,14 +10,14 @@
 
 #include <QDebug>
 
-SearchableSqlTableModel::SearchableSqlTableModel(QObject* parent,
+SqlTableModel::SqlTableModel(QObject* parent,
                                                  QSqlDatabase db) :
     ParentModelClass(parent), m_db(db)
 {}
 
-SearchableSqlTableModel::~SearchableSqlTableModel() = default;
+SqlTableModel::~SqlTableModel() = default;
 
-QModelIndex SearchableSqlTableModel::findIndex(
+QModelIndex SqlTableModel::findIndex(
         int column,
         const QVariant& value)
 {
@@ -27,7 +27,7 @@ QModelIndex SearchableSqlTableModel::findIndex(
     return {};
 }
 
-QModelIndex SearchableSqlTableModel::findIndex(
+QModelIndex SqlTableModel::findIndex(
         const QString& fieldName,
         const QVariant& value)
 {
@@ -46,7 +46,7 @@ QModelIndex SearchableSqlTableModel::findIndex(
     return out;
 }
 
-QModelIndex SearchableSqlTableModel::findIndex(
+QModelIndex SqlTableModel::findIndex(
         int resultColumn,
         int searchColumn,
         const QVariant& value)
@@ -58,7 +58,7 @@ QModelIndex SearchableSqlTableModel::findIndex(
     return out;
 }
 
-QModelIndex SearchableSqlTableModel::findIndex(
+QModelIndex SqlTableModel::findIndex(
         const QString& resultFieldName,
         const QString& searchFieldName,
         const QVariant& value)
@@ -71,7 +71,7 @@ QModelIndex SearchableSqlTableModel::findIndex(
 
 }
 
-Qt::ItemFlags SearchableSqlTableModel::flags(const QModelIndex& index) const
+Qt::ItemFlags SqlTableModel::flags(const QModelIndex& index) const
 {
     auto out = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
     auto column = index.column();
@@ -97,33 +97,33 @@ Qt::ItemFlags SearchableSqlTableModel::flags(const QModelIndex& index) const
     return out;
 }
 
-bool SearchableSqlTableModel::canEdit() const
+bool SqlTableModel::canEdit() const
 {
     return m_canEdit;
 }
 
-void SearchableSqlTableModel::setCanEdit(bool canEdit)
+void SqlTableModel::setCanEdit(bool canEdit)
 {
     m_canEdit = canEdit;
 }
 
 
-auto SearchableSqlTableModel::alwaysEditableColumns()
--> SearchableSqlTableModel::editable_column_list&
+auto SqlTableModel::alwaysEditableColumns()
+-> SqlTableModel::editable_column_list&
 {
     return m_alwaysEditableColumns;
 }
 
-QString SearchableSqlTableModel::tableName() const
+QString SqlTableModel::tableName() const
 {
     return m_tableName;
 }
 
-void SearchableSqlTableModel::setTable(const QString& tableName) {
+void SqlTableModel::setTable(const QString& tableName) {
     setTableName(tableName);
 }
 
-QVariant SearchableSqlTableModel::data(const QModelIndex& idx, int role) const
+QVariant SqlTableModel::data(const QModelIndex& idx, int role) const
 {
     QVariant out;
     if (idx.isValid()) {
@@ -148,7 +148,7 @@ QVariant SearchableSqlTableModel::data(const QModelIndex& idx, int role) const
     return out;
 }
 
-QVariant SearchableSqlTableModel::data(int row,
+QVariant SqlTableModel::data(int row,
                                        const QString& fieldName,
                                        int role)
 {
@@ -156,7 +156,7 @@ QVariant SearchableSqlTableModel::data(int row,
     return data(modelIndex, role);
 }
 
-bool SearchableSqlTableModel::setData(const QModelIndex& index,
+bool SqlTableModel::setData(const QModelIndex& index,
                                       const QVariant& value,
                                       int role)
 {
@@ -167,7 +167,7 @@ bool SearchableSqlTableModel::setData(const QModelIndex& index,
     return false;
 }
 
-bool SearchableSqlTableModel::setData(int row,
+bool SqlTableModel::setData(int row,
                                       const QString& fieldName,
                                       const QVariant& value,
                                       int role)
@@ -176,7 +176,7 @@ bool SearchableSqlTableModel::setData(int row,
     return setData(modelIndex, value, role);
 }
 
-bool SearchableSqlTableModel::setData(
+bool SqlTableModel::setData(
         int row, int column, const QVariant& value, int role)
 {
     if (row >= 0 &&
@@ -218,37 +218,37 @@ bool SearchableSqlTableModel::setData(
     return false;
 }
 
-QModelIndex SearchableSqlTableModel::index(int row, int column, const QModelIndex& parent) const
+QModelIndex SqlTableModel::index(int row, int column, const QModelIndex& parent) const
 {
     return ParentModelClass::index(row, column, parent);
 }
 
-QModelIndex SearchableSqlTableModel::index(int row, const QString& field, const QModelIndex& parent) const
+QModelIndex SqlTableModel::index(int row, const QString& field, const QModelIndex& parent) const
 {
     return index(row, fieldIndex(field), parent);
 }
 
-QModelIndex SearchableSqlTableModel::parent(const QModelIndex& index) const
+QModelIndex SqlTableModel::parent(const QModelIndex& index) const
 {
     Q_UNUSED(index);
     return {};
 }
 
-bool SearchableSqlTableModel::isDirty() const {
+bool SqlTableModel::isDirty() const {
     return m_dirty;
 }
 
-int SearchableSqlTableModel::rowCount(const QModelIndex& parent) const {
+int SqlTableModel::rowCount(const QModelIndex& parent) const {
     Q_UNUSED(parent);
     return (int)m_rows.size();
 }
 
-int SearchableSqlTableModel::columnCount(const QModelIndex& parent) const {
+int SqlTableModel::columnCount(const QModelIndex& parent) const {
     Q_UNUSED(parent);
     return (int)m_fieldNames.size();
 }
 
-SearchableSqlTableModel::RowPtr SearchableSqlTableModel::rowAt(int row) {
+SqlTableModel::RowPtr SqlTableModel::rowAt(int row) {
     RowPtr out = nullptr;
     if (row > -1 && row < rowCount()) {
         out = m_rows[row];
@@ -256,11 +256,11 @@ SearchableSqlTableModel::RowPtr SearchableSqlTableModel::rowAt(int row) {
     return out;
 }
 
-int SearchableSqlTableModel::fieldIndex(const QString& fieldName) const {
+int SqlTableModel::fieldIndex(const QString& fieldName) const {
     return m_defaultRecord.indexOf(fieldName);
 }
 
-SearchableSqlTableModel::RowPtr SearchableSqlTableModel::prepareNewRow(int newRowIndex) {
+SqlTableModel::RowPtr SqlTableModel::prepareNewRow(int newRowIndex) {
     RowPtr out = std::make_shared<RowStruct>();
     out->rowData = m_defaultRecord;
     out->status = RowStatus::Inserted;
@@ -273,7 +273,7 @@ SearchableSqlTableModel::RowPtr SearchableSqlTableModel::prepareNewRow(int newRo
     return out;
 }
 
-bool SearchableSqlTableModel::insertRows(int row, int count, const QModelIndex&)
+bool SqlTableModel::insertRows(int row, int count, const QModelIndex&)
 {
     RowsCollection newRows;
     newRows.reserve(count);
@@ -284,7 +284,7 @@ bool SearchableSqlTableModel::insertRows(int row, int count, const QModelIndex&)
     return insertRows(actualRow, newRows);
 }
 
-bool SearchableSqlTableModel::removeRows(int row, int count, const QModelIndex& parent)
+bool SqlTableModel::removeRows(int row, int count, const QModelIndex& parent)
 {
     if (row < 0 || row + count > rowCount(parent)) return false;
     for (int i = 0; i < count; i++) {
@@ -300,17 +300,17 @@ bool SearchableSqlTableModel::removeRows(int row, int count, const QModelIndex& 
     return true;
 }
 
-QString SearchableSqlTableModel::filter() const {
+QString SqlTableModel::filter() const {
     return m_filter;
 }
 
-void SearchableSqlTableModel::setFilter(const QString& filter) {
+void SqlTableModel::setFilter(const QString& filter) {
     m_filter = filter;
     if (m_selectedAtLeastOnce)
         select();
 }
 
-void SearchableSqlTableModel::setTableName(const QString& tableName)
+void SqlTableModel::setTableName(const QString& tableName)
 {
     if (tableName != m_tableName) {
         m_tableName = tableName;
@@ -321,29 +321,29 @@ void SearchableSqlTableModel::setTableName(const QString& tableName)
     emit tableNameChanged(tableName);
 }
 
-bool SearchableSqlTableModel::select() {
+bool SqlTableModel::select() {
     emit selectStarted();
     return _internalSelect([this](){
         emit this->selectFinished();
     });
 }
 
-void SearchableSqlTableModel::revert() {
+void SqlTableModel::revert() {
     emit revertStarted();
     _internalSelect([this](){
         emit this->revertFinished();
     });
 }
 
-void SearchableSqlTableModel::revertAll() {
+void SqlTableModel::revertAll() {
     revert();
 }
 
-bool SearchableSqlTableModel::submit() {
+bool SqlTableModel::submit() {
     return ParentModelClass::submit();
 }
 
-bool SearchableSqlTableModel::_internalSelect(std::function<void ()> callback)
+bool SqlTableModel::_internalSelect(std::function<void ()> callback)
 {
     QString request = "SELECT * FROM " + m_tableName;
     if (!m_filter.isEmpty()) {
@@ -384,7 +384,7 @@ bool SearchableSqlTableModel::_internalSelect(std::function<void ()> callback)
     return false;
 }
 
-bool SearchableSqlTableModel::submitAll()
+bool SqlTableModel::submitAll()
 {
     if (!isDirty()) {
         emit submitAllStarted();
@@ -407,20 +407,20 @@ bool SearchableSqlTableModel::submitAll()
     return updateResult && deleteResult && insertResult;
 }
 
-auto SearchableSqlTableModel::getRows() const
+auto SqlTableModel::getRows() const
 -> const RowsCollection &
 {
     return m_rows;
 }
 
-void SearchableSqlTableModel::setRows(const SearchableSqlTableModel::RowsCollection& rowsCollection)
+void SqlTableModel::setRows(const SqlTableModel::RowsCollection& rowsCollection)
 {
     beginResetModel();
     m_rows = rowsCollection;
     endResetModel();
 }
 
-void SearchableSqlTableModel::getFieldNames() {
+void SqlTableModel::getFieldNames() {
     m_fieldNames.clear();
     m_defaultRecord = m_db.record(m_tableName);
     if (m_primaryKey.isEmpty()) {
@@ -439,7 +439,7 @@ void SearchableSqlTableModel::getFieldNames() {
     }
 }
 
-auto SearchableSqlTableModel::getRowsWithStatus(RowStatus status) const
+auto SqlTableModel::getRowsWithStatus(RowStatus status) const
 -> RowsCollection
 {
     RowsCollection out;
@@ -451,7 +451,7 @@ auto SearchableSqlTableModel::getRowsWithStatus(RowStatus status) const
     return out;
 }
 
-bool SearchableSqlTableModel::performUpdate()
+bool SqlTableModel::performUpdate()
 {
     bool out = true;
 
@@ -515,7 +515,7 @@ bool SearchableSqlTableModel::performUpdate()
     return out;
 }
 
-bool SearchableSqlTableModel::performDelete()
+bool SqlTableModel::performDelete()
 {
     bool out = true;
 
@@ -559,17 +559,17 @@ bool SearchableSqlTableModel::performDelete()
     return out;
 }
 
-void SearchableSqlTableModel::setDatabase(QSqlDatabase db)
+void SqlTableModel::setDatabase(QSqlDatabase db)
 {
     m_db = db;
 }
 
-void SearchableSqlTableModel::setAlwaysEditableColumns(const editable_column_list& alwaysEditableColumns)
+void SqlTableModel::setAlwaysEditableColumns(const editable_column_list& alwaysEditableColumns)
 {
     m_alwaysEditableColumns = alwaysEditableColumns;
 }
 
-bool SearchableSqlTableModel::performInsert()
+bool SqlTableModel::performInsert()
 {
     bool out = true;
 
@@ -635,7 +635,7 @@ bool SearchableSqlTableModel::performInsert()
     return out;
 }
 
-QString SearchableSqlTableModel::generateUpdateRequest(bool& ok) const
+QString SqlTableModel::generateUpdateRequest(bool& ok) const
 {
     QString out;
     out = "UPDATE " + m_tableName + " AS O SET ";
@@ -685,7 +685,7 @@ QString SearchableSqlTableModel::generateUpdateRequest(bool& ok) const
     return out;
 }
 
-QString SearchableSqlTableModel::generateInsertRequest(bool& ok) const {
+QString SqlTableModel::generateInsertRequest(bool& ok) const {
     QString out;
     out = "INSERT INTO " + m_tableName + " VALUES ";
     for (const auto& row : m_rows) {
@@ -716,7 +716,7 @@ QString SearchableSqlTableModel::generateInsertRequest(bool& ok) const {
     return out;
 }
 
-bool SearchableSqlTableModel::insertRows(int row,
+bool SqlTableModel::insertRows(int row,
                                          const RowsCollection& rows,
                                          const QModelIndex& parent)
 {
@@ -737,7 +737,7 @@ bool SearchableSqlTableModel::insertRows(int row,
     return true;
 }
 
-void SearchableSqlTableModel::showTextMessage(const QString& debugText, const QString& userText)
+void SqlTableModel::showTextMessage(const QString& debugText, const QString& userText)
 {
 #ifdef QT_DEBUG
     Q_UNUSED(userText);
@@ -757,27 +757,27 @@ void SearchableSqlTableModel::showTextMessage(const QString& debugText, const QS
 #endif
 }
 
-bool SearchableSqlTableModel::isSelectedAtLeastOnce() const
+bool SqlTableModel::isSelectedAtLeastOnce() const
 {
     return m_selectedAtLeastOnce;
 }
 
-void SearchableSqlTableModel::setSelectedAtLeastOnce(bool selectedAtLeastOnce)
+void SqlTableModel::setSelectedAtLeastOnce(bool selectedAtLeastOnce)
 {
     m_selectedAtLeastOnce = selectedAtLeastOnce;
 }
 
-auto SearchableSqlTableModel::fieldNames() const -> const QStringList&
+auto SqlTableModel::fieldNames() const -> const QStringList&
 {
     return m_fieldNames;
 }
 
-void SearchableSqlTableModel::setFieldNames(const QStringList& fieldNames)
+void SqlTableModel::setFieldNames(const QStringList& fieldNames)
 {
     m_fieldNames = fieldNames;
 }
 
-QVariant SearchableSqlTableModel::headerData(int section, Qt::Orientation orientation, int role) const
+QVariant SqlTableModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     QVariant out;
     if (orientation == Qt::Vertical && role == Qt::DisplayRole) {
@@ -812,7 +812,7 @@ QVariant SearchableSqlTableModel::headerData(int section, Qt::Orientation orient
     return out;
 }
 
-bool SearchableSqlTableModel::setHeaderData(int section,
+bool SqlTableModel::setHeaderData(int section,
                                             Qt::Orientation orientation,
                                             const QVariant& value, int role)
 {
@@ -824,38 +824,38 @@ bool SearchableSqlTableModel::setHeaderData(int section,
     return ParentModelClass::setHeaderData(section, orientation, role);
 }
 
-QSqlDatabase SearchableSqlTableModel::database() const
+QSqlDatabase SqlTableModel::database() const
 {
     return m_db;
 }
 
-QSqlTableModel::EditStrategy SearchableSqlTableModel::editStrategy() const
+QSqlTableModel::EditStrategy SqlTableModel::editStrategy() const
 {
     return m_editStrategy;
 }
 
-void SearchableSqlTableModel::setEditStrategy(QSqlTableModel::EditStrategy strategy)
+void SqlTableModel::setEditStrategy(QSqlTableModel::EditStrategy strategy)
 {
     m_editStrategy = strategy;
 }
 
-bool SearchableSqlTableModel::insertRecord(int row, const QSqlRecord& record) {
+bool SqlTableModel::insertRecord(int row, const QSqlRecord& record) {
     auto newRowPtr = prepareNewRow(row);
     newRowPtr->rowData = record;
     return insertRows(row, {newRowPtr});
 }
 
-bool SearchableSqlTableModel::isDirty(const QModelIndex& index) const
+bool SqlTableModel::isDirty(const QModelIndex& index) const
 {
     return m_rows[index.row()]->status != RowStatus::None;
 }
 
-QSqlRecord SearchableSqlTableModel::record() const
+QSqlRecord SqlTableModel::record() const
 {
     return m_defaultRecord;
 }
 
-QSqlRecord SearchableSqlTableModel::record(int row) const
+QSqlRecord SqlTableModel::record(int row) const
 {
     auto out = record();
     if (row >= 0 && row < rowCount()) {
@@ -864,12 +864,12 @@ QSqlRecord SearchableSqlTableModel::record(int row) const
     return out;
 }
 
-void SearchableSqlTableModel::revertRow(int row)
+void SqlTableModel::revertRow(int row)
 {
     Q_UNUSED(row);
 }
 
-bool SearchableSqlTableModel::setRecord(int row, const QSqlRecord& values)
+bool SqlTableModel::setRecord(int row, const QSqlRecord& values)
 {
     bool out = true;
     if (row >= 0 && row < rowCount()) {
@@ -880,7 +880,7 @@ bool SearchableSqlTableModel::setRecord(int row, const QSqlRecord& values)
     return out;
 }
 
-void SearchableSqlTableModel::setSort(int column, Qt::SortOrder order)
+void SqlTableModel::setSort(int column, Qt::SortOrder order)
 {
     m_sortColumn = column;
     m_sortOrder = order;
@@ -894,24 +894,24 @@ void SearchableSqlTableModel::setSort(int column, Qt::SortOrder order)
     }
 }
 
-QVariant SearchableSqlTableModel::lastInsertId() const
+QVariant SqlTableModel::lastInsertId() const
 {
     return m_lastInsertId;
 }
 
-void SearchableSqlTableModel::setFilterAndSelectIfNeeded(const QString& newFilter) {
+void SqlTableModel::setFilterAndSelectIfNeeded(const QString& newFilter) {
     if (!isSelectedAtLeastOnce() || filter() != newFilter) {
         setFilter(newFilter);
         select();
     }
 }
 
-QMap<QPersistentModelIndex, bool> SearchableSqlTableModel::checkStates() const
+QMap<QPersistentModelIndex, bool> SqlTableModel::checkStates() const
 {
     return m_checkStates;
 }
 
-void SearchableSqlTableModel::setCheckStates(
+void SqlTableModel::setCheckStates(
         const QMap<QPersistentModelIndex, bool>& checkStates)
 {
     m_checkStates = checkStates;
@@ -924,7 +924,7 @@ void SearchableSqlTableModel::setCheckStates(
     }
 }
 
-QList<QSqlRecord> SearchableSqlTableModel::selectedRecords() const
+QList<QSqlRecord> SqlTableModel::selectedRecords() const
 {
     QList<QSqlRecord> out;
     for (auto it = m_checkStates.begin(); it != m_checkStates.end(); it++) {
@@ -935,30 +935,30 @@ QList<QSqlRecord> SearchableSqlTableModel::selectedRecords() const
     return out;
 }
 
-bool SearchableSqlTableModel::isRowMarkedForDeletion(int row)
+bool SqlTableModel::isRowMarkedForDeletion(int row)
 {
     if (row < 0 || row >= (int)m_rows.size()) return false;
     return m_rows[row]->status == RowStatus::Deleted;
 }
 
-void SearchableSqlTableModel::setPrimaryKey(const QString& fieldName)
+void SqlTableModel::setPrimaryKey(const QString& fieldName)
 {
     m_primaryKey = fieldName;
 }
 
-auto SearchableSqlTableModel::checkableColumns() const
--> SearchableSqlTableModel::FlagsCollection
+auto SqlTableModel::checkableColumns() const
+-> SqlTableModel::FlagsCollection
 {
     return m_checkableColumns;
 }
 
-void SearchableSqlTableModel::setCheckableColumns(
+void SqlTableModel::setCheckableColumns(
         const FlagsCollection& checkableColumns)
 {
     m_checkableColumns = checkableColumns;
 }
 
-void SearchableSqlTableModel::setCheckableColumns(
+void SqlTableModel::setCheckableColumns(
         const QHash<QString, bool>& checkableColumns)
 {
     m_checkableColumns.clear();
