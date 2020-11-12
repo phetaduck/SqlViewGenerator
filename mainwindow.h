@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include <unordered_map>
 #include <QSqlDatabase>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
