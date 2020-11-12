@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <QSqlDatabase>
 #include <QLocalSocket>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
