@@ -7,6 +7,29 @@
 #include <QSqlDatabase>
 #include <QIcon>
 #include <QSqlRelation>
+#include <unordered_map>
+#include <QLocalSocket>
+
+namespace NamedPipes {
+
+inline auto socketErrors() -> std::unordered_map<int, QString> & {
+    static std::unordered_map<int, QString> errors {
+        { QLocalSocket::ConnectionRefusedError, "ConnectionRefusedError" },
+        { QLocalSocket::PeerClosedError, "PeerClosedError" },
+        { QLocalSocket::ServerNotFoundError, "ServerNotFoundError" },
+        { QLocalSocket::SocketAccessError, "SocketAccessError" },
+        { QLocalSocket::SocketResourceError, "SocketResourceError" },
+        { QLocalSocket::SocketTimeoutError, "SocketTimeoutError" },
+        { QLocalSocket::DatagramTooLargeError, "DatagramTooLargeError" },
+        { QLocalSocket::ConnectionError, "ConnectionError" },
+        { QLocalSocket::UnsupportedSocketOperationError, "UnsupportedSocketOperationError" },
+        { QLocalSocket::UnknownSocketError, "UnknownSocketError" },
+        { QLocalSocket::OperationError, "OperationError" },
+    };
+    return errors;
+}
+
+}
 
 struct DBTypeDesc {
     QString DefaultDB;

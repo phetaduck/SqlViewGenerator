@@ -11,6 +11,11 @@ const QString Settings::DbPassKey = "db/pass";
 const QString Settings::LastCommandsKey = "db/last_commands";
 const QString Settings::DbTypeKey = "db/type";
 const QString Settings::PipeNameKey = "pipe/name";
+const QString Settings::LocalServerNameKey = "pipe/createdName";
+
+const QString Settings::LastRemoteProtocolNameKey = "remote/protocol";
+const QString Settings::LastRemoteServerNameKey = "remote/server";
+const QString Settings::LastRemoteAPINameKey = "remote/api";
 
 
 Settings::Settings()
@@ -101,4 +106,48 @@ auto Settings::pipeName() const -> QString
 {
     return value(PipeNameKey, "\\\\.\\pipe\\PipeName").toString();
 }
+
+void Settings::setLocalServer(const QString &value)
+{
+    setValue(LocalServerNameKey, value);
+}
+
+auto Settings::localServer() const -> QString
+{
+    return value(LocalServerNameKey, "\\\\.\\pipe\\LocalServer").toString();
+}
+
+void Settings::setLastRemoteProtocol(const QString& value)
+{
+    setValue(LastRemoteProtocolNameKey, value);
+}
+
+QString Settings::lastRemoteProtocol() const
+{
+    return value(LastRemoteProtocolNameKey, "http://").toString();
+}
+
+void Settings::setLastRemoteServer(const QString& value)
+{
+    setValue(LastRemoteServerNameKey, value);
+}
+
+QString Settings::lastRemoteServer() const
+{
+    return value(LastRemoteServerNameKey, "127.0.0.1").toString();
+
+}
+
+void Settings::setLastRemoteAPI(const QString& value)
+{
+    setValue(LastRemoteAPINameKey, value);
+
+}
+
+QString Settings::lastRemoteAPI() const
+{
+    return value(LastRemoteAPINameKey, "/api/external/incident").toString();
+
+}
+
 

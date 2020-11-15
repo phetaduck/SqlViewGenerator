@@ -100,7 +100,9 @@ QString AsyncSqlTableModel::prepareUpdateStatement() const
 bool AsyncSqlTableModel::_internalSelect(std::function<void ()> callback)
 {
     if (future.isRunning()) return false;
-    connect(&watcher, &QFutureWatcher<bool>::finished, [this, callback]() {
+    connect(&watcher, &QFutureWatcher<bool>::finished,
+            this, [this, callback]()
+    {
         if (future.result())
             m_dirty = false;
         beginResetModel();
@@ -158,7 +160,6 @@ bool AsyncSqlTableModel::_internalSelect(std::function<void ()> callback)
 bool AsyncSqlTableModel::performUpdate()
 {
     bool out = true;
-    QString request;
     QHash<int, RowPtr> updatedRows;
     auto syncCacheSize = (int)m_syncRowsCache.size();
     updatedRows.reserve(syncCacheSize);
