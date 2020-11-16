@@ -11,8 +11,8 @@
 #include <QSqlError>
 #include <QDesktopWidget>
 #include <QDateTime>
-#include <QNetworkAccessManager>
 #include <QFileDialog>
+#include <QNetworkReply>
 
 #include <sstream>
 #include <iomanip>
@@ -23,6 +23,20 @@
 #include "application.h"
 #include "sqlsyntaxhighlighter.h"
 #include "models/autosqltablemodel.h"
+
+namespace ColumnsNS {
+
+enum Columns {
+    EventDate = 0,
+    Direct = 1,
+    Event = 2,
+    KeyNumber = 3,
+    Username = 4,
+    Options = 5,
+    Position = 6
+};
+
+}
 
 template<typename PageClass>
 void createPage(const QString& title) {
@@ -60,6 +74,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     auto settings = Application::app()->settings();
 
+    m_networkManager = new QNetworkAccessManager();
+
     ui->le_Protocol->setText(settings.lastRemoteProtocol());
     ui->le_RemoteAddress->setText(settings.lastRemoteServer());
     ui->le_RemoteApi->setText(settings.lastRemoteAPI());
@@ -88,11 +104,34 @@ MainWindow::MainWindow(QWidget *parent)
             ui->pte_Log->appendPlainText("File: "
                                          + filePath
                                          + " changed");
-            if (file.seek(m_watchedFileSize))
-            {
-                auto fileConents = file.read(file.size() - m_watchedFileSize);
-            }
+            QTextStream in(&file);
+            in.seek(m_watchedFileSize);
 
+            while (!in.atEnd()) {
+                QString line = in.readLine();
+                QStringList values = line.split(';');
+                QJsonObject obj;
+                obj.insert("eventDate", values.at(ColumnsNS::EventDate));
+                obj.insert("direct", values.at(ColumnsNS::Direct));
+                obj.insert("event", values.at(ColumnsNS::Event));
+                obj.insert("keyNumber", values.at(ColumnsNS::KeyNumber));
+                obj.insert("username", values.at(ColumnsNS::Username));
+                obj.insert("options", values.at(ColumnsNS::Options));
+                obj.insert("position", values.at(ColumnsNS::Position));
+                QJsonDocument doc;
+                doc.setObject(obj);
+                if (m_pipeConnection->isValid()) {
+                    m_pipeConnection->write(doc.toJson());
+                    ui->pte_Log->appendPlainText("New lines: ");
+                    ui->pte_Log->appendPlainText(doc.toJson());
+                } else {
+
+                }
+            }
+            file.close();
+            if (!m_fsWatcher.files().contains(filePath)) {
+                m_fsWatcher.addPath(filePath);
+            }
         } else {
             ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
         }
@@ -121,6 +160,7 @@ MainWindow::MainWindow(QWidget *parent)
             m_fsWatcher.removePaths(m_fsWatcher.files());
             m_fsWatcher.addPath(filePath);
             ui->pte_Log->appendPlainText("Watching file: " + filePath);
+            file.close();
         } else {
             ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
         }
@@ -130,8 +170,8 @@ MainWindow::MainWindow(QWidget *parent)
             this, [this]()
     {
         auto settings = Application::app()->settings();
-        ui->pte_Log->appendPlainText(settings.localServer() + ": new connection");
         auto pendingConnection = m_localServer->nextPendingConnection();
+        ui->pte_Log->appendPlainText(settings.localServer() + ": new connection");
         if (pendingConnection) {
             connect(pendingConnection, &QLocalSocket::readyRead,
                     this, [this, pendingConnection]()
@@ -178,18 +218,23 @@ MainWindow::MainWindow(QWidget *parent)
                         auto it = m_faceIdCache.findByKeyNumber(keyNumber);
                         static int eventId = 0;
                         if (eventId > 10000) eventId = 0;
-                        if (it != m_faceIdCache.cache().end() && temp > 37.0) {
+                        if (it != m_faceIdCache.cache().end()) {
+                            ui->pte_Log->appendPlainText("Matching faceID found...");
+                            if (temp > 37.0) {
+                                ui->pte_Log->appendPlainText("Temperature is above threshold, sending event...");
+                                Event event;
+                                event.id = eventId++;
+                                event.latitude = 0;
+                                event.longitude = 0;
+                                event.occurred = eventDate.toSecsSinceEpoch();
+                                event.system_id = 17;
+                                event.incident_type = "26.2";
+                                send({event});
+                            }
                             /// @note match found. high temp
-                            Event event;
-                            event.id = eventId++;
-                            event.latitude = 0;
-                            event.longitude = 0;
-                            event.occurred = eventDate.toSecsSinceEpoch();
-                            event.system_id = 17;
-                            event.incident_type = "26.2";
-                            send({event});
                         } else {
                             /// @note match not found, wait 30 seconds
+                            ui->pte_Log->appendPlainText("Matching faceID not found, waiting 30 seconds...");
                             QTimer::singleShot(30000, this, [this,
                                                keyNumber,
                                                eventDate]()
@@ -198,6 +243,7 @@ MainWindow::MainWindow(QWidget *parent)
                                 if (it == m_faceIdCache.cache().end()) {
                                     /// @note send message
                                     //
+                                    ui->pte_Log->appendPlainText("Matching faceID still not found, sending message...");
                                     Event event;
                                     event.id = eventId++;
                                     event.latitude = 0;
@@ -222,7 +268,13 @@ MainWindow::MainWindow(QWidget *parent)
         auto settings = Application::app()->settings();
         settings.setLocalServer(ui->le_LocalServer->text());
 
-        m_localServer->listen(settings.localServer());
+        if (m_localServer->listen(settings.localServer())) {
+            ui->pte_Log->appendPlainText("Created local server: "
+                                         + settings.localServer());
+        } else {
+            ui->pte_Log->appendPlainText("Failed to create local server: "
+                                         + settings.localServer());
+        }
     });
 
     connect(ui->pb_connectPipe, &QPushButton::clicked,
@@ -272,6 +324,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->listWidget, &SqlListWidget::setAsRelation,
             this, [this](QString table)
     {
+        ui->pte_Log->appendPlainText("Setting table: "
+                                     + table
+                                     + " as key number relation table");
         if (table.isEmpty()) m_relationModel = nullptr;
         ModelManager::sharedSqlTableModel(m_relationModel, std::move(table));
         m_relationModel->select();
@@ -292,6 +347,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->listWidget, &SqlListWidget::addToWatchList,
             this, [this](QString table)
     {
+        ui->pte_Log->appendPlainText("Adding table: "
+                                     + table
+                                     + " to watch list");
         auto model = ModelManager::sharedSqlTableModel<AutoSqlTableModel>(table);
         if (!model->isSelectedAtLeastOnce()) {
             model->select();
@@ -384,7 +442,6 @@ void MainWindow::send(const QList<Event> &eventList)
     settings.setLastRemoteProtocol(ui->le_Protocol->text());
     settings.setLastRemoteServer(ui->le_RemoteAddress->text());
     settings.setLastRemoteAPI(ui->le_RemoteApi->text());
-    QNetworkAccessManager *manager = new QNetworkAccessManager();
     QNetworkRequest request(QUrl(settings.lastRemoteProtocol()
                                  + settings.lastRemoteServer()
                                  + settings.lastRemoteAPI()));
@@ -402,9 +459,18 @@ void MainWindow::send(const QList<Event> &eventList)
         array.append(obj);
     }
     QJsonDocument doc(array);
-    manager->post(request, doc.toJson());
+    ui->pte_Log->appendPlainText("Sending request to " + request.url().toString());
+    ui->pte_Log->appendPlainText("Request body :" + doc.toJson());
+    auto postRequest = m_networkManager->post(request, doc.toJson());
+    connect(postRequest, &QNetworkReply::finished,
+            this, [this, postRequest]()
+    {
+        if (postRequest->error() != QNetworkReply::NetworkError::NoError) {
+            ui->pte_Log->appendPlainText("Network request error");
+        }
+    });
 
-    delete manager;
+    delete m_networkManager;
 }
 
 void MainWindow::updateSqlScript(const QString& table)

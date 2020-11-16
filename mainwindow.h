@@ -5,6 +5,7 @@
 #include <QLocalSocket>
 #include <QLocalServer>
 #include <QFileSystemWatcher>
+#include <QNetworkAccessManager>
 
 #include <memory>
 #include <unordered_map>
@@ -45,6 +46,7 @@ private:
     std::unique_ptr<QLocalSocket> m_pipeConnection = nullptr;
     std::unique_ptr<QLocalServer> m_localServer = nullptr;
     SqlTableModel* m_relationModel = nullptr;
+    QNetworkAccessManager *m_networkManager = nullptr;
 
     QString m_relationtable = "id_key_number";
     FaceIDCache m_faceIdCache;
