@@ -13,9 +13,9 @@ struct DBTypeDesc {
     QSqlRelation DefaultRel;
 };
 
-inline std::unordered_map<QString, DBTypeDesc>& defaultDBs ()
+inline QHash<QString, DBTypeDesc>& defaultDBs ()
 {
-    static std::unordered_map<QString, DBTypeDesc> out {
+    static QHash<QString, DBTypeDesc> out {
         {"QPSQL",
             {
                 "postgres",
