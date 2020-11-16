@@ -50,7 +50,8 @@ private:
 
     QString m_relationtable = "id_key_number";
     FaceIDCache m_faceIdCache;
-    QFileSystemWatcher m_fsWatcher;
+    SkudIDCache m_skudIdCache;
+    QFileSystemWatcher* m_fsWatcher = nullptr;
     qint64 m_watchedFileSize = 0;
 
     QSqlDatabase dbconn;

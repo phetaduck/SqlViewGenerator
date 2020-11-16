@@ -24,6 +24,8 @@
 #include "sqlsyntaxhighlighter.h"
 #include "models/autosqltablemodel.h"
 
+static int eventId = 0;
+
 namespace ColumnsNS {
 
 enum Columns {
@@ -72,9 +74,22 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    std::srand(std::time(0));
+    eventId = std::rand();
+
     auto settings = Application::app()->settings();
 
     m_networkManager = new QNetworkAccessManager();
+    connect(m_networkManager, &QNetworkAccessManager::finished,
+            this, [this](QNetworkReply* reply)
+    {
+        if (reply->error() != QNetworkReply::NetworkError::NoError) {
+            ui->pte_Log->appendPlainText(reply->errorString());
+        } else {
+            ui->pte_Log->appendPlainText("successfully created event");
+        }
+        reply->deleteLater();
+    });
 
     ui->le_Protocol->setText(settings.lastRemoteProtocol());
     ui->le_RemoteAddress->setText(settings.lastRemoteServer());
@@ -96,20 +111,27 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->le_WatchFile->setText(settings.watchFile());
 
-    connect(&m_fsWatcher, &QFileSystemWatcher::fileChanged,
+    m_fsWatcher = new QFileSystemWatcher(this);
+
+    connect(m_fsWatcher, &QFileSystemWatcher::fileChanged,
             this, [this](const QString& filePath)
     {
         QFile file {filePath};
-        if (file.open(QIODevice::ReadOnly)) {
+        if (file.open(QIODevice::ReadOnly) && file.size()) {
             ui->pte_Log->appendPlainText("File: "
                                          + filePath
                                          + " changed");
             QTextStream in(&file);
             in.seek(m_watchedFileSize);
+            m_watchedFileSize = file.size() - 2;
 
             while (!in.atEnd()) {
                 QString line = in.readLine();
                 QStringList values = line.split(';');
+                if (values.size() <= ColumnsNS::Position) {
+                    ui->pte_Log->appendPlainText("missing columnd in csv file");
+                    continue;
+                }
                 QJsonObject obj;
                 obj.insert("eventDate", values.at(ColumnsNS::EventDate));
                 obj.insert("direct", values.at(ColumnsNS::Direct));
@@ -129,8 +151,8 @@ MainWindow::MainWindow(QWidget *parent)
                 }
             }
             file.close();
-            if (!m_fsWatcher.files().contains(filePath)) {
-                m_fsWatcher.addPath(filePath);
+            if (!m_fsWatcher->files().contains(filePath)) {
+                m_fsWatcher->addPath(filePath);
             }
         } else {
             ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
@@ -154,13 +176,42 @@ MainWindow::MainWindow(QWidget *parent)
         auto filePath = ui->le_WatchFile->text();
         QFile file {filePath};
         if (file.open(QIODevice::ReadOnly)) {
-            ui->pte_Log->appendPlainText("File: " + filePath + " opened");
-            m_watchedFileSize = file.size();
-            ui->pte_Log->appendPlainText("File size: " + QString::number(m_watchedFileSize));
-            m_fsWatcher.removePaths(m_fsWatcher.files());
-            m_fsWatcher.addPath(filePath);
-            ui->pte_Log->appendPlainText("Watching file: " + filePath);
+            auto fileSize = file.size();
             file.close();
+            m_watchedFileSize = fileSize > 1 ? fileSize - 2 : 0;
+/*
+            QString wholeFile = file.readAll();
+            wholeFile.remove('\r');
+            QStringList lines = wholeFile.split('\n');
+            for (const QString& line : lines) {
+                QStringList values = line.split(';');
+                if (values.size() <= ColumnsNS::Position
+                        || values.contains("Event date"))
+                {
+                    ui->pte_Log->appendPlainText("missing columnd in csv file");
+                    continue;
+                } else {
+                    ui->pte_Log->appendPlainText("\t" + line);
+                }
+                m_skudIdCache.addSkudIDEvent(
+                            {
+                                QDateTime::fromString(
+                                values.at(ColumnsNS::EventDate),
+                                "dd.MM.yyyy hh:mm:ss"),
+                                values.at(ColumnsNS::Direct).toInt(),
+                                values.at(ColumnsNS::Event).toInt(),
+                                values.at(ColumnsNS::KeyNumber),
+                                values.at(ColumnsNS::Username),
+                                values.at(ColumnsNS::Options),
+                                values.at(ColumnsNS::Position).toInt(),
+                            });
+            }
+            */
+            ui->pte_Log->appendPlainText("File: " + filePath + " opened");
+            ui->pte_Log->appendPlainText("File size: " + QString::number(m_watchedFileSize));
+            m_fsWatcher->removePaths(m_fsWatcher->files());
+            m_fsWatcher->addPath(filePath);
+            ui->pte_Log->appendPlainText("Watching file: " + filePath);
         } else {
             ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
         }
@@ -209,49 +260,71 @@ MainWindow::MainWindow(QWidget *parent)
                     auto keyNumber = jsonObject.value("keyNumber").toString();
                     auto eventDate = QDateTime::fromString(
                                          jsonObject.value("eventDate").toString(),
-                                         "dd.MM.yyyy hh:mm");
-                    auto temp = jsonObject.value("temperature").toString().toDouble();
-                    if (!keyNumber.isEmpty() &&
-                            eventDate.isValid() )
+                                         "dd.MM.yyyy hh:mm:ss");
+                    auto eventType = jsonObject.value("event").toInt();
+                    ui->pte_Log->appendPlainText("SKUD event. Key number: " + keyNumber
+                                                 + " event date "
+                                                 + eventDate.toString());
+                    if (!keyNumber.isEmpty()
+                            && eventType != 3)
                     {
                         // find faceId event
                         auto it = m_faceIdCache.findByKeyNumber(keyNumber);
-                        static int eventId = 0;
-                        if (eventId > 10000) eventId = 0;
+                        if (eventId == INT_MAX) eventId = std::rand();
                         if (it != m_faceIdCache.cache().end()) {
                             ui->pte_Log->appendPlainText("Matching faceID found...");
-                            if (temp > 37.0) {
+                            if (it->temp > 37.0) {
                                 ui->pte_Log->appendPlainText("Temperature is above threshold, sending event...");
                                 Event event;
-                                event.id = eventId++;
-                                event.latitude = 0;
-                                event.longitude = 0;
+                                event.id = QString::number(eventId++);
+                                event.latitude = 55.927916;
+                                event.longitude = 37.851449;
                                 event.occurred = eventDate.toSecsSinceEpoch();
                                 event.system_id = 17;
                                 event.incident_type = "26.2";
                                 send({event});
                             }
+                            m_faceIdCache.cache().erase(it);
+                            ui->pte_Log->appendPlainText("Removed faceID from cache");
                             /// @note match found. high temp
                         } else {
                             /// @note match not found, wait 30 seconds
-                            ui->pte_Log->appendPlainText("Matching faceID not found, waiting 30 seconds...");
-                            QTimer::singleShot(30000, this, [this,
+                            ui->pte_Log->appendPlainText("Matching faceID not found, waiting 10 seconds...");
+                            QTimer::singleShot(10000, this, [this,
                                                keyNumber,
-                                               eventDate]()
+                                               eventDate,
+                                               eventType]()
                             {
                                 auto it = m_faceIdCache.findByKeyNumber(keyNumber);
-                                if (it == m_faceIdCache.cache().end()) {
+                                if (it == m_faceIdCache.cache().end()
+                                        && eventType != 3) {
                                     /// @note send message
                                     //
                                     ui->pte_Log->appendPlainText("Matching faceID still not found, sending message...");
                                     Event event;
-                                    event.id = eventId++;
-                                    event.latitude = 0;
-                                    event.longitude = 0;
+                                    event.id = QString::number(eventId++);
+                                    event.latitude = 55.927916;
+                                    event.longitude = 37.851449;
                                     event.occurred = eventDate.toSecsSinceEpoch();
                                     event.system_id = 17;
                                     event.incident_type = "26.1";
                                     send({event});
+                                } else {
+                                    ui->pte_Log->appendPlainText("Matching faceID found...");
+                                    if (it->temp > 37.0) {
+                                        ui->pte_Log->appendPlainText("Temperature is above threshold, sending event...");
+                                        Event event;
+                                        event.id = QString::number(eventId++);
+                                        event.latitude = 55.927916;
+                                        event.longitude = 37.851449;
+                                        event.occurred = eventDate.toSecsSinceEpoch();
+                                        event.system_id = 17;
+                                        event.incident_type = "26.2";
+                                        send({event});
+                                    }
+                                    m_faceIdCache.cache().erase(it);
+                                    ui->pte_Log->appendPlainText("Removed faceID from cache");
+                                    /// @note match found. high temp
                                 }
                             });
                         }
@@ -461,16 +534,7 @@ void MainWindow::send(const QList<Event> &eventList)
     QJsonDocument doc(array);
     ui->pte_Log->appendPlainText("Sending request to " + request.url().toString());
     ui->pte_Log->appendPlainText("Request body :" + doc.toJson());
-    auto postRequest = m_networkManager->post(request, doc.toJson());
-    connect(postRequest, &QNetworkReply::finished,
-            this, [this, postRequest]()
-    {
-        if (postRequest->error() != QNetworkReply::NetworkError::NoError) {
-            ui->pte_Log->appendPlainText("Network request error");
-        }
-    });
-
-    delete m_networkManager;
+    m_networkManager->post(request, doc.toJson());
 }
 
 void MainWindow::updateSqlScript(const QString& table)
