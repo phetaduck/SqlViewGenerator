@@ -17,13 +17,15 @@ SOURCES += \
     models/sqltablemodel.cpp \
     tablecolumnview.cpp \
     utils/application.cpp \
+    utils/faceidcache.cpp \
     utils/modelmanager.cpp \
     utils/settings.cpp \
     utils/sqlsharedutils.cpp \
     utils/sqlsyntaxhighlighter.cpp \
     widgets/asyncsqlcombobox.cpp \
     widgets/filtersqlcombobox.cpp \
-    widgets/sqlcombobox.cpp
+    widgets/sqlcombobox.cpp \
+    widgets/sqllistwidget.cpp
 
 HEADERS += \
     dialogs/authentificationdialog.h \
@@ -33,13 +35,15 @@ HEADERS += \
     models/sqltablemodel.h \
     tablecolumnview.h \
     utils/application.h \
+    utils/faceidcache.h \
     utils/modelmanager.h \
     utils/settings.h \
     utils/sqlsharedutils.h \
     utils/sqlsyntaxhighlighter.h \
     widgets/asyncsqlcombobox.h \
     widgets/filtersqlcombobox.h \
-    widgets/sqlcombobox.h
+    widgets/sqlcombobox.h \
+    widgets/sqllistwidget.h
 
 FORMS += \
     dialogs/authentificationdialog.ui \

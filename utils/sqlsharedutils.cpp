@@ -139,9 +139,7 @@ QString ThreadingCommon::DBConn::connectionName(const QString& dbName)
 
     return QString("CNM0x%1_%2_%3_%4_%5")
                       .arg((qlonglong)curThread, 0, 16)
-                      .arg(m_host)
-                      .arg(dbName)
-                      .arg(m_login)
+                      .arg(m_host, dbName, m_login)
                       .arg(m_port);
 }
 

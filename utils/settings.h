@@ -25,6 +25,15 @@ public:
     auto dbType() const -> QString;
     void setPipeName(const QString & value);
     auto pipeName() const -> QString;
+    void setLocalServer(const QString & value);
+    auto localServer() const -> QString;
+
+    void setLastRemoteProtocol(const QString & value);
+    auto lastRemoteProtocol() const -> QString;
+    void setLastRemoteServer(const QString & value);
+    auto lastRemoteServer() const -> QString;
+    void setLastRemoteAPI(const QString & value);
+    auto lastRemoteAPI() const -> QString;
 
 private:
     static const QString LastLoginKey;
@@ -35,4 +44,8 @@ private:
     static const QString LastCommandsKey;
     static const QString DbTypeKey;
     static const QString PipeNameKey;
+    static const QString LocalServerNameKey;
+    static const QString LastRemoteProtocolNameKey;
+    static const QString LastRemoteServerNameKey;
+    static const QString LastRemoteAPINameKey;
 };

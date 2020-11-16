@@ -10,8 +10,13 @@
 #include <QSqlResult>
 #include <QSqlError>
 #include <QDesktopWidget>
+#include <QDateTime>
+#include <QNetworkAccessManager>
+
 #include <sstream>
 #include <iomanip>
+#include <cstdlib>
+#include <ctime>
 
 #include "sqlsharedutils.h"
 #include "application.h"
@@ -54,6 +59,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     auto settings = Application::app()->settings();
 
+    ui->le_Protocol->setText(settings.lastRemoteProtocol());
+    ui->le_RemoteAddress->setText(settings.lastRemoteServer());
+    ui->le_RemoteApi->setText(settings.lastRemoteAPI());
+
     ui->cb_Databases->setSqlRelation(defaultRelation(settings.dbType()));
     ui->cb_Databases->sqlComboBox()->setData(settings.dbName());
 
@@ -63,6 +72,109 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->pte_Commands->setPlainText(settings.lastCommands());
     ui->le_pipeName->setText(settings.pipeName());
+    ui->le_LocalServer->setText(settings.localServer());
+
+    m_localServer = std::make_unique<QLocalServer>();
+    m_pipeConnection = std::make_unique<QLocalSocket>();
+
+    connect(m_localServer.get(), &QLocalServer::newConnection,
+            this, [this]()
+    {
+        auto settings = Application::app()->settings();
+        ui->pte_Log->appendPlainText(settings.localServer() + ": new connection");
+        auto pendingConnection = m_localServer->nextPendingConnection();
+        if (pendingConnection) {
+            connect(pendingConnection, &QLocalSocket::readyRead,
+                    this, [this, pendingConnection]()
+            {
+                auto buffer = pendingConnection->readAll();
+                ui->pte_Log->appendPlainText("New message:");
+                ui->pte_Log->appendPlainText(buffer);
+
+                auto json = QJsonDocument::fromJson(buffer);
+                auto jsonObject = json.object();
+                auto source = jsonObject.find("source");
+                if (source != jsonObject.end()
+                        && source->toString() == "faceid")
+                {
+                    // faceid
+                    auto oa_attendance_punch = jsonObject.find("oa_attendance_punch");
+                    if (oa_attendance_punch != jsonObject.end()) {
+                        auto faceIdJsonArray = jsonObject.value("oa_attendance_punch").toArray();
+                        for (const auto& jsonValue : faceIdJsonArray) {
+                            auto faceIdJson = jsonValue.toObject();
+                            FaceID newFaceID {
+                                faceIdJson.value("emp_id").toInt(),
+                                        faceIdJson.value("key_number").toString(),
+                                        faceIdJson.value("temperature").toString().toDouble(),
+                                        QDateTime::fromString(
+                                            faceIdJson.value("punch_time").toString(),
+                                            "yyyy-MM-ddThh:mm:ss.zzz"),
+                                        faceIdJson.value("emp_name").toString(),
+                            };
+                            m_faceIdCache.addFaceIDEvent(newFaceID);
+                        }
+                    }
+                } else {
+                    // skud
+                    auto keyNumber = jsonObject.value("keyNumber").toString();
+                    auto eventDate = QDateTime::fromString(
+                                         jsonObject.value("eventDate").toString(),
+                                         "dd.MM.yyyy hh:mm");
+                    auto temp = jsonObject.value("temperature").toString().toDouble();
+                    if (!keyNumber.isEmpty() &&
+                            eventDate.isValid() )
+                    {
+                        // find faceId event
+                        auto it = m_faceIdCache.findByKeyNumber(keyNumber);
+                        static int eventId = 0;
+                        if (eventId > 10000) eventId = 0;
+                        if (it != m_faceIdCache.cache().end() && temp > 37.0) {
+                            /// @note match found. high temp
+                            Event event;
+                            event.id = eventId++;
+                            event.latitude = 0;
+                            event.longitude = 0;
+                            event.occurred = eventDate.toSecsSinceEpoch();
+                            event.system_id = 17;
+                            event.incident_type = "26.2";
+                            send({event});
+                        } else {
+                            /// @note match not found, wait 30 seconds
+                            QTimer::singleShot(30000, this, [this,
+                                               keyNumber,
+                                               eventDate]()
+                            {
+                                auto it = m_faceIdCache.findByKeyNumber(keyNumber);
+                                if (it == m_faceIdCache.cache().end()) {
+                                    /// @note send message
+                                    //
+                                    Event event;
+                                    event.id = eventId++;
+                                    event.latitude = 0;
+                                    event.longitude = 0;
+                                    event.occurred = eventDate.toSecsSinceEpoch();
+                                    event.system_id = 17;
+                                    event.incident_type = "26.1";
+                                    send({event});
+                                }
+                            });
+                        }
+                    }
+                }
+
+            });
+        }
+    });
+
+    connect(ui->pb_CreateServer, &QPushButton::clicked,
+            this, [this]()
+    {
+        auto settings = Application::app()->settings();
+        settings.setLocalServer(ui->le_LocalServer->text());
+
+        m_localServer->listen(settings.localServer());
+    });
 
     connect(ui->pb_connectPipe, &QPushButton::clicked,
             this, [this]()
@@ -70,7 +182,6 @@ MainWindow::MainWindow(QWidget *parent)
         auto settings = Application::app()->settings();
         settings.setPipeName(ui->le_pipeName->text());
 
-        m_pipeConnection = std::make_unique<QLocalSocket>();
         m_pipeConnection->connectToServer(settings.pipeName(),
                                           QIODevice::WriteOnly);
     });
@@ -109,10 +220,29 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
+    connect(ui->listWidget, &SqlListWidget::setAsRelation,
+            this, [this](QString table)
+    {
+        if (table.isEmpty()) m_relationModel = nullptr;
+        ModelManager::sharedSqlTableModel(m_relationModel, std::move(table));
+        m_relationModel->select();
+    });
+
     connect(ui->listWidget->selectionModel(), &QItemSelectionModel::currentChanged,
             this, [this](const QModelIndex& current, const QModelIndex&)
     {
         auto table = current.data().toString();
+        auto model = ModelManager::sharedSqlTableModel<SqlTableModel>(table);
+        if (!model->isSelectedAtLeastOnce()) {
+            model->select();
+        }
+        ui->tv_SelectedTableContents->setModel(model);
+        updateSqlScript(table);
+    });
+
+    connect(ui->listWidget, &SqlListWidget::addToWatchList,
+            this, [this](QString table)
+    {
         auto model = ModelManager::sharedSqlTableModel<AutoSqlTableModel>(table);
         if (!model->isSelectedAtLeastOnce()) {
             model->select();
@@ -144,42 +274,88 @@ MainWindow::MainWindow(QWidget *parent)
                             << fieldValue.toString()
                             << "\n\t";
                     }
+                    QString keyCard;
+                    if (m_relationModel
+                            && record.contains("emp_id")
+                            && m_relationModel->record().contains("id"))
+                    {
+                        keyCard = m_relationModel->findIndex(
+                                           "key_number",
+                                           "id",
+                                           record.value("emp_id")).data().toString();
+
+                    }
+                    if (!keyCard.isEmpty()) {
+                        jsonRecord.insert("key_number", keyCard);
+                    }
 
                     // JSON
                     jsonArray.push_back(jsonRecord);
-                    QJsonObject jsonMsg;
-                    jsonMsg.insert("messageType", "ecall");
-                    static int i = 1;
-                    if (i > 1000) {
-                        i = 1;
-                    }
-                    QString num = QString::fromStdString(int_to_hex(i++));
-                    QString packectId {"source:faceid, pid:"};
-                    packectId += num;
-
-                    jsonMsg.insert("packetId", packectId);
-                    jsonMsg.insert(model->tableName(), jsonArray);
-                    QJsonDocument doc {jsonMsg};
-                    auto msg = doc.toJson();
-                    if (m_pipeConnection && m_pipeConnection->isValid()) {
-                        m_pipeConnection->write(msg);
-                    }
-
                     // LOGGING
                     ui->pte_Log->appendPlainText(logText);
-                    ui->pte_Log->appendPlainText(msg);
                 }
+                QJsonObject jsonMsg;
+                jsonMsg.insert("messageType", "ecall");
+                static int i = 1;
+                if (i > 1000) {
+                    i = 1;
+                }
+                QString num = QString::fromStdString(int_to_hex(i++));
+                QString packectId {"source:faceid, pid:"};
+                packectId += num;
+
+                jsonMsg.insert("packetId", packectId);
+                jsonMsg.insert("source", "faceid");
+                jsonMsg.insert(model->tableName(), jsonArray);
+                QJsonDocument doc {jsonMsg};
+                auto msg = doc.toJson();
+                if (m_pipeConnection && m_pipeConnection->isValid()) {
+                    m_pipeConnection->write(msg);
+                    ui->pte_Log->appendPlainText("Message successfuly sent");
+                }
+
+                // LOGGING
+                ui->pte_Log->appendPlainText(msg);
             });
         }
-        ui->tv_SelectedTableContents->setModel(model);
-
-        updateSqlScript(table);
     });
+
+    connect(ui->tb_Refresh, &QToolButton::clicked,
+            this, &MainWindow::insertRandomFaceId);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::send(const QList<Event> &eventList)
+{
+    auto settings = Application::app()->settings();
+    settings.setLastRemoteProtocol(ui->le_Protocol->text());
+    settings.setLastRemoteServer(ui->le_RemoteAddress->text());
+    settings.setLastRemoteAPI(ui->le_RemoteApi->text());
+    QNetworkAccessManager *manager = new QNetworkAccessManager();
+    QNetworkRequest request(QUrl(settings.lastRemoteProtocol()
+                                 + settings.lastRemoteServer()
+                                 + settings.lastRemoteAPI()));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonArray array;
+    for (auto &event : eventList) {
+        QJsonObject obj;
+        obj.insert("latitude", event.latitude);
+        obj.insert("longitude", event.longitude);
+        obj.insert("occurred", event.occurred);
+        obj.insert("incident_type", event.incident_type);
+        obj.insert("id", event.id);
+        obj.insert("system_id", event.system_id);
+        array.append(obj);
+    }
+    QJsonDocument doc(array);
+    manager->post(request, doc.toJson());
+
+    delete manager;
 }
 
 void MainWindow::updateSqlScript(const QString& table)
@@ -378,5 +554,71 @@ void MainWindow::updateSqlScript(const QString& table)
                 + uTrgText
                 + dTrgText
                 );
+}
+
+void MainWindow::insertRandomFaceId()
+{
+    static std::vector<std::pair<int, QString>> emps {
+        {4, "Коптяев"},
+        {10, "Кистанов"},
+    };
+    static std::vector<float> temps {
+       36.6f,
+       38.0f,
+    };
+
+    std::srand(std::time(0));
+
+    auto rEmp = emps[std::rand() % emps.size()];
+    auto temp = temps[std::rand() % temps.size()];
+    auto now = QDateTime::currentDateTime().toString("yyyy-MM-ddThh:mm:ss.zzz");
+
+    auto request = QString {"INSERT INTO oa_attendance_punch"
+                            "("
+                            "create_company_id,"
+                            "create_company_name,"
+                            "created_datetime,"
+                            "creator_id,"
+                            "creator_name,"
+                            "emp_id,"
+                            "emp_name,"
+                            "org_id,"
+                            "org_name,"
+                            "punch_time,"
+                            "type,"
+                            "result_type,"
+                            "device_ip,"
+                            "is_attendance,"
+                            "device_id,"
+                            "device_area,"
+                            "temperature"
+                            ") VALUES ("
+                            "1,"
+                            "'test',"
+                            "'%1',"
+                            "1,"
+                            "'admin',"
+                            "%2,"
+                            "'%3',"
+                            "2,"
+                            "'проходная 1',"
+                            "'%4',"
+                            "0,"
+                            "0,"
+                            "27383227,"
+                            "1,"
+                            "27,"
+                            "32,"
+                            "%5"
+                            ");"}
+                   .arg(now) // created_datetime
+                   .arg(rEmp.first) // emp_id
+                   .arg(rEmp.second) // emp_name
+                   .arg(now) // punch_time
+                   .arg(temp); // temperature
+    ui->pte_Log->appendPlainText(request);
+    auto query = ThreadingCommon::DBConn::instance()->db().exec(request);
+    ui->pte_Log->appendPlainText(query.lastError().text());
+
 }
 

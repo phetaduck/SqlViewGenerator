@@ -8,7 +8,8 @@
 bool AutoSqlTableModel::_internalSelect(std::function<void ()> callback)
 {
     if (future.isRunning()) return false;
-    connect(&watcher, &QFutureWatcher<bool>::finished, [this, callback]() {
+    connect(&watcher, &QFutureWatcher<bool>::finished,
+            this, [this, callback]() {
         if (future.result())
             m_dirty = false;
         beginResetModel();
@@ -19,7 +20,8 @@ bool AutoSqlTableModel::_internalSelect(std::function<void ()> callback)
         m_selectedAtLeastOnce = true;
         if (callback)
             callback();
-        emit newRecords(newRecordsList);
+        if (newRecordsList.size())
+            emit newRecords(newRecordsList);
         if (m_rows.size()) {
             QTimer::singleShot(1000, this, [this]()
             {
