@@ -12,6 +12,7 @@
 #include <QDesktopWidget>
 #include <QDateTime>
 #include <QNetworkAccessManager>
+#include <QFileDialog>
 
 #include <sstream>
 #include <iomanip>
@@ -76,6 +77,54 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_localServer = std::make_unique<QLocalServer>();
     m_pipeConnection = std::make_unique<QLocalSocket>();
+
+    ui->le_WatchFile->setText(settings.watchFile());
+
+    connect(&m_fsWatcher, &QFileSystemWatcher::fileChanged,
+            this, [this](const QString& filePath)
+    {
+        QFile file {filePath};
+        if (file.open(QIODevice::ReadOnly)) {
+            ui->pte_Log->appendPlainText("File: "
+                                         + filePath
+                                         + " changed");
+            if (file.seek(m_watchedFileSize))
+            {
+                auto fileConents = file.read(file.size() - m_watchedFileSize);
+            }
+
+        } else {
+            ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
+        }
+
+    });
+
+    connect(ui->tb_OpenWatchFile, &QToolButton::clicked,
+            this, [this]()
+    {
+        auto settings = Application::app()->settings();
+        settings.setWatchFile(QFileDialog::getOpenFileName(this,
+                                                           "Choose SKUD file to watch",
+                                                           settings.watchFile(), "*.csv"));
+        ui->le_WatchFile->setText(settings.watchFile());
+    });
+
+    connect(ui->pb_WatchFile, &QPushButton::clicked,
+            this, [this]()
+    {
+        auto filePath = ui->le_WatchFile->text();
+        QFile file {filePath};
+        if (file.open(QIODevice::ReadOnly)) {
+            ui->pte_Log->appendPlainText("File: " + filePath + " opened");
+            m_watchedFileSize = file.size();
+            ui->pte_Log->appendPlainText("File size: " + QString::number(m_watchedFileSize));
+            m_fsWatcher.removePaths(m_fsWatcher.files());
+            m_fsWatcher.addPath(filePath);
+            ui->pte_Log->appendPlainText("Watching file: " + filePath);
+        } else {
+            ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
+        }
+    });
 
     connect(m_localServer.get(), &QLocalServer::newConnection,
             this, [this]()

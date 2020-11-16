@@ -35,6 +35,9 @@ public:
     void setLastRemoteAPI(const QString & value);
     auto lastRemoteAPI() const -> QString;
 
+    void setWatchFile(const QString& value);
+    auto watchFile() const -> QString;
+
 private:
     static const QString LastLoginKey;
     static const QString DbHostNameKey;
@@ -48,4 +51,5 @@ private:
     static const QString LastRemoteProtocolNameKey;
     static const QString LastRemoteServerNameKey;
     static const QString LastRemoteAPINameKey;
+    static const QString WatchFileNameKey;
 };

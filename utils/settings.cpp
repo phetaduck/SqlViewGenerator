@@ -17,6 +17,8 @@ const QString Settings::LastRemoteProtocolNameKey = "remote/protocol";
 const QString Settings::LastRemoteServerNameKey = "remote/server";
 const QString Settings::LastRemoteAPINameKey = "remote/api";
 
+const QString Settings::WatchFileNameKey = "skud/watchFile";
+
 
 Settings::Settings()
     : QSettings(
@@ -141,13 +143,23 @@ QString Settings::lastRemoteServer() const
 void Settings::setLastRemoteAPI(const QString& value)
 {
     setValue(LastRemoteAPINameKey, value);
-
 }
 
 QString Settings::lastRemoteAPI() const
 {
     return value(LastRemoteAPINameKey, "/api/external/incident").toString();
 
+}
+
+void Settings::setWatchFile(const QString& value)
+{
+    setValue(WatchFileNameKey, value);
+}
+
+auto Settings::watchFile() const -> QString
+{
+    return value(WatchFileNameKey,
+                 "C://Users//Виктория//AppData//Roaming//IronLogic//GuardCmd").toString();
 }
 
 

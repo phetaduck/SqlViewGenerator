@@ -4,6 +4,7 @@
 #include <QSqlDatabase>
 #include <QLocalSocket>
 #include <QLocalServer>
+#include <QFileSystemWatcher>
 
 #include <memory>
 #include <unordered_map>
@@ -47,6 +48,8 @@ private:
 
     QString m_relationtable = "id_key_number";
     FaceIDCache m_faceIdCache;
+    QFileSystemWatcher m_fsWatcher;
+    qint64 m_watchedFileSize = 0;
 
     QSqlDatabase dbconn;
 
