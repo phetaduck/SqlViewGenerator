@@ -37,6 +37,7 @@ QModelIndex SqlTableModel::findIndex(
         for (int r = 0; r < rowCount(); r++)
         {
             auto row = m_rows[r];
+            qDebug() << row->rowData.value(fieldName) << value;
             if (row->rowData.value(fieldName) == value) {
                 out = index(r, column);
                 break;

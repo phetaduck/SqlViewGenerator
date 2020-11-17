@@ -18,6 +18,7 @@ SOURCES += \
     tablecolumnview.cpp \
     utils/application.cpp \
     utils/faceidcache.cpp \
+    utils/filepolling.cpp \
     utils/modelmanager.cpp \
     utils/settings.cpp \
     utils/sqlsharedutils.cpp \
@@ -36,6 +37,7 @@ HEADERS += \
     tablecolumnview.h \
     utils/application.h \
     utils/faceidcache.h \
+    utils/filepolling.h \
     utils/modelmanager.h \
     utils/settings.h \
     utils/sqlsharedutils.h \

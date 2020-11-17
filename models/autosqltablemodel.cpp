@@ -45,6 +45,7 @@ bool AutoSqlTableModel::_internalSelect(std::function<void ()> callback)
         if (!db.isOpen()) {
             return false;
         }
+        getFieldNames();
         QSqlQuery query{db};
         if (query.exec(request)) {
             m_syncRowsCache.clear();

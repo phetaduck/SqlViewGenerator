@@ -25,16 +25,6 @@
       </property>
      </widget>
     </item>
-    <item row="5" column="1">
-     <widget class="QLabel" name="lb_Pipe">
-      <property name="text">
-       <string>Named Pipe:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
     <item row="8" column="0">
      <widget class="QGroupBox" name="gb_Log">
       <property name="title">
@@ -47,32 +37,15 @@
       </layout>
      </widget>
     </item>
-    <item row="6" column="5">
-     <widget class="QPushButton" name="pb_CreateServer">
+    <item row="5" column="2" colspan="3">
+     <widget class="QLineEdit" name="le_pipeName">
       <property name="text">
-       <string>Create Local Serer</string>
+       <string/>
       </property>
      </widget>
     </item>
-    <item row="5" column="5">
-     <widget class="QPushButton" name="pb_connectPipe">
-      <property name="text">
-       <string>Connect To Named Pipe</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="1">
-     <widget class="QLabel" name="lb_RemoteAddress">
-      <property name="text">
-       <string>АСУ НС address:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="5">
-     <widget class="QLineEdit" name="le_RemoteApi">
+    <item row="4" column="2">
+     <widget class="QLineEdit" name="le_Protocol">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
         <horstretch>0</horstretch>
@@ -80,7 +53,10 @@
        </sizepolicy>
       </property>
       <property name="text">
-       <string>/api/external/incident</string>
+       <string>http://</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
      </widget>
     </item>
@@ -96,13 +72,30 @@
        <string>Run commands</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
-       <item row="1" column="0" colspan="7">
+       <item row="1" column="0" colspan="8">
         <widget class="QPlainTextEdit" name="pte_Commands">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QToolButton" name="tb_SaveSql">
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="images.qrc">
+           <normaloff>:/img/res/outline_save_black_24dp.png</normaloff>:/img/res/outline_save_black_24dp.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>24</width>
+           <height>24</height>
+          </size>
          </property>
         </widget>
        </item>
@@ -140,14 +133,14 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="0">
-        <widget class="QToolButton" name="tb_SaveSql">
+       <item row="0" column="3">
+        <widget class="QToolButton" name="tb_Refresh">
          <property name="text">
           <string>...</string>
          </property>
          <property name="icon">
           <iconset resource="images.qrc">
-           <normaloff>:/img/res/outline_save_black_24dp.png</normaloff>:/img/res/outline_save_black_24dp.png</iconset>
+           <normaloff>:/img/res/outline_add_a_photo_black_24dp.png</normaloff>:/img/res/outline_add_a_photo_black_24dp.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -157,14 +150,14 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="3">
-        <widget class="QToolButton" name="tb_Refresh">
+       <item row="0" column="4">
+        <widget class="QToolButton" name="tb_AddSkudID">
          <property name="text">
           <string>...</string>
          </property>
          <property name="icon">
           <iconset resource="images.qrc">
-           <normaloff>:/img/res/refresh.png</normaloff>:/img/res/refresh.png</iconset>
+           <normaloff>:/img/res/outline_addchart_black_24dp.png</normaloff>:/img/res/outline_addchart_black_24dp.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -175,6 +168,60 @@
         </widget>
        </item>
       </layout>
+     </widget>
+    </item>
+    <item row="3" column="4">
+     <widget class="QToolButton" name="tb_OpenWatchFile">
+      <property name="text">
+       <string>...</string>
+      </property>
+      <property name="icon">
+       <iconset resource="images.qrc">
+        <normaloff>:/img/res/round_folder_open_black_24dp.png</normaloff>:/img/res/round_folder_open_black_24dp.png</iconset>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>24</width>
+        <height>24</height>
+       </size>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="1">
+     <widget class="QLabel" name="lb_Server">
+      <property name="text">
+       <string>Local Server:</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="2" colspan="3">
+     <widget class="QLineEdit" name="le_LocalServer">
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="5">
+     <widget class="QLineEdit" name="le_RemoteApi">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>/api/external/incident</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="3" colspan="2">
+     <widget class="QLineEdit" name="le_RemoteAddress">
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
      </widget>
     </item>
     <item row="0" column="1" rowspan="3" colspan="5">
@@ -193,10 +240,40 @@
       </property>
      </widget>
     </item>
+    <item row="3" column="2" colspan="2">
+     <widget class="QLineEdit" name="le_WatchFile"/>
+    </item>
+    <item row="6" column="5">
+     <widget class="QPushButton" name="pb_CreateServer">
+      <property name="text">
+       <string>Create Local Serer</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="1">
+     <widget class="QLabel" name="lb_Pipe">
+      <property name="text">
+       <string>Named Pipe:</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      </property>
+     </widget>
+    </item>
     <item row="3" column="5">
      <widget class="QPushButton" name="pb_WatchFile">
       <property name="text">
        <string>Watch File</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="1">
+     <widget class="QLabel" name="lb_RemoteAddress">
+      <property name="text">
+       <string>АСУ НС address:</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
      </widget>
     </item>
@@ -210,19 +287,10 @@
       </property>
      </widget>
     </item>
-    <item row="4" column="2">
-     <widget class="QLineEdit" name="le_Protocol">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
+    <item row="5" column="5">
+     <widget class="QPushButton" name="pb_connectPipe">
       <property name="text">
-       <string>http://</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       <string>Connect To Named Pipe</string>
       </property>
      </widget>
     </item>
@@ -264,67 +332,6 @@
         </widget>
        </item>
       </layout>
-     </widget>
-    </item>
-    <item row="6" column="1">
-     <widget class="QLabel" name="lb_Server">
-      <property name="text">
-       <string>Local Server:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="6" rowspan="9">
-     <widget class="QTextEdit" name="te_Output">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="2" colspan="2">
-     <widget class="QLineEdit" name="le_WatchFile"/>
-    </item>
-    <item row="3" column="4">
-     <widget class="QToolButton" name="tb_OpenWatchFile">
-      <property name="text">
-       <string>...</string>
-      </property>
-      <property name="icon">
-       <iconset resource="images.qrc">
-        <normaloff>:/img/res/round_folder_open_black_24dp.png</normaloff>:/img/res/round_folder_open_black_24dp.png</iconset>
-      </property>
-      <property name="iconSize">
-       <size>
-        <width>24</width>
-        <height>24</height>
-       </size>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="3" colspan="2">
-     <widget class="QLineEdit" name="le_RemoteAddress">
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="2" colspan="3">
-     <widget class="QLineEdit" name="le_pipeName">
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-    </item>
-    <item row="6" column="2" colspan="3">
-     <widget class="QLineEdit" name="le_LocalServer">
-      <property name="text">
-       <string/>
-      </property>
      </widget>
     </item>
    </layout>

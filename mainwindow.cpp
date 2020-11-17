@@ -98,9 +98,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->cb_Databases->setSqlRelation(defaultRelation(settings.dbType()));
     ui->cb_Databases->sqlComboBox()->setData(settings.dbName());
 
-    auto highlighter = new SQLSyntaxHighlighter(ui->pte_Commands->document());
-
-    highlighter = new SQLSyntaxHighlighter(ui->te_Output->document());
+    m_highlighter = new SQLSyntaxHighlighter(ui->pte_Commands->document());
 
     ui->pte_Commands->setPlainText(settings.lastCommands());
     ui->le_pipeName->setText(settings.pipeName());
@@ -111,53 +109,47 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->le_WatchFile->setText(settings.watchFile());
 
-    m_fsWatcher = new QFileSystemWatcher(this);
+    m_fsWatcher = new FilePolling (this);
 
-    connect(m_fsWatcher, &QFileSystemWatcher::fileChanged,
-            this, [this](const QString& filePath)
+    connect(ui->tb_AddSkudID, &QToolButton::clicked,
+            this, &MainWindow::insertRandomSkudId);
+
+    connect(m_fsWatcher, &FilePolling::fileExpanded,
+            this, [this](const QString& filePath, const QByteArray& newData, qint64, qint64)
     {
-        QFile file {filePath};
-        if (file.open(QIODevice::ReadOnly) && file.size()) {
-            ui->pte_Log->appendPlainText("File: "
-                                         + filePath
-                                         + " changed");
-            QTextStream in(&file);
-            in.seek(m_watchedFileSize);
-            m_watchedFileSize = file.size() - 2;
+        ui->pte_Log->appendPlainText("File: "
+                                     + filePath
+                                     + " changed");
+        ui->pte_Log->appendPlainText("New data: "
+                                     + newData);
 
-            while (!in.atEnd()) {
-                QString line = in.readLine();
-                QStringList values = line.split(';');
-                if (values.size() <= ColumnsNS::Position) {
-                    ui->pte_Log->appendPlainText("missing columnd in csv file");
-                    continue;
-                }
-                QJsonObject obj;
-                obj.insert("eventDate", values.at(ColumnsNS::EventDate));
-                obj.insert("direct", values.at(ColumnsNS::Direct));
-                obj.insert("event", values.at(ColumnsNS::Event));
-                obj.insert("keyNumber", values.at(ColumnsNS::KeyNumber));
-                obj.insert("username", values.at(ColumnsNS::Username));
-                obj.insert("options", values.at(ColumnsNS::Options));
-                obj.insert("position", values.at(ColumnsNS::Position));
-                QJsonDocument doc;
-                doc.setObject(obj);
-                if (m_pipeConnection->isValid()) {
-                    m_pipeConnection->write(doc.toJson());
-                    ui->pte_Log->appendPlainText("New lines: ");
-                    ui->pte_Log->appendPlainText(doc.toJson());
-                } else {
+        QTextStream in(newData);
+        while (!in.atEnd()) {
+            QString line = in.readLine();
+            QStringList values = line.split(';');
+            if (values.size() <= ColumnsNS::Position) {
+                ui->pte_Log->appendPlainText("missing columnd in csv file");
+                continue;
+            }
+            if (values.at(ColumnsNS::Event) == "3") continue;
+            QJsonObject obj;
+            obj.insert("eventDate", values.at(ColumnsNS::EventDate));
+            obj.insert("direct", values.at(ColumnsNS::Direct));
+            obj.insert("event", values.at(ColumnsNS::Event));
+            obj.insert("keyNumber", values.at(ColumnsNS::KeyNumber));
+            obj.insert("username", values.at(ColumnsNS::Username));
+            obj.insert("options", values.at(ColumnsNS::Options));
+            obj.insert("position", values.at(ColumnsNS::Position));
+            QJsonDocument doc;
+            doc.setObject(obj);
+            if (m_pipeConnection->isValid()) {
+                m_pipeConnection->write(doc.toJson());
+                //ui->pte_Log->appendPlainText("New lines: ");
+                //ui->pte_Log->appendPlainText(doc.toJson());
+            } else {
 
-                }
             }
-            file.close();
-            if (!m_fsWatcher->files().contains(filePath)) {
-                m_fsWatcher->addPath(filePath);
-            }
-        } else {
-            ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
         }
-
     });
 
     connect(ui->tb_OpenWatchFile, &QToolButton::clicked,
@@ -174,43 +166,12 @@ MainWindow::MainWindow(QWidget *parent)
             this, [this]()
     {
         auto filePath = ui->le_WatchFile->text();
-        QFile file {filePath};
-        if (file.open(QIODevice::ReadOnly)) {
-            auto fileSize = file.size();
-            file.close();
-            m_watchedFileSize = fileSize > 1 ? fileSize - 2 : 0;
-/*
-            QString wholeFile = file.readAll();
-            wholeFile.remove('\r');
-            QStringList lines = wholeFile.split('\n');
-            for (const QString& line : lines) {
-                QStringList values = line.split(';');
-                if (values.size() <= ColumnsNS::Position
-                        || values.contains("Event date"))
-                {
-                    ui->pte_Log->appendPlainText("missing columnd in csv file");
-                    continue;
-                } else {
-                    ui->pte_Log->appendPlainText("\t" + line);
-                }
-                m_skudIdCache.addSkudIDEvent(
-                            {
-                                QDateTime::fromString(
-                                values.at(ColumnsNS::EventDate),
-                                "dd.MM.yyyy hh:mm:ss"),
-                                values.at(ColumnsNS::Direct).toInt(),
-                                values.at(ColumnsNS::Event).toInt(),
-                                values.at(ColumnsNS::KeyNumber),
-                                values.at(ColumnsNS::Username),
-                                values.at(ColumnsNS::Options),
-                                values.at(ColumnsNS::Position).toInt(),
-                            });
-            }
-            */
-            ui->pte_Log->appendPlainText("File: " + filePath + " opened");
-            ui->pte_Log->appendPlainText("File size: " + QString::number(m_watchedFileSize));
-            m_fsWatcher->removePaths(m_fsWatcher->files());
-            m_fsWatcher->addPath(filePath);
+        QFileInfo file {filePath};
+        if (file.exists()) {
+            m_skudFilePath = filePath;
+            ui->pte_Log->appendPlainText("File: " + filePath + " exists");
+            m_fsWatcher->clearPaths();
+            m_fsWatcher->pollFile(filePath);
             ui->pte_Log->appendPlainText("Watching file: " + filePath);
         } else {
             ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
@@ -243,33 +204,22 @@ MainWindow::MainWindow(QWidget *parent)
                         auto faceIdJsonArray = jsonObject.value("oa_attendance_punch").toArray();
                         for (const auto& jsonValue : faceIdJsonArray) {
                             auto faceIdJson = jsonValue.toObject();
-                            FaceID newFaceID {
-                                faceIdJson.value("emp_id").toInt(),
-                                        faceIdJson.value("key_number").toString(),
-                                        faceIdJson.value("temperature").toString().toDouble(),
-                                        QDateTime::fromString(
-                                            faceIdJson.value("punch_time").toString(),
-                                            "yyyy-MM-ddThh:mm:ss.zzz"),
-                                        faceIdJson.value("emp_name").toString(),
-                            };
+                            auto newFaceID = FaceID::FromJSON(faceIdJson);
                             m_faceIdCache.addFaceIDEvent(newFaceID);
                         }
                     }
                 } else {
                     // skud
-                    auto keyNumber = jsonObject.value("keyNumber").toString();
-                    auto eventDate = QDateTime::fromString(
-                                         jsonObject.value("eventDate").toString(),
-                                         "dd.MM.yyyy hh:mm:ss");
-                    auto eventType = jsonObject.value("event").toInt();
-                    ui->pte_Log->appendPlainText("SKUD event. Key number: " + keyNumber
+                    auto newSkudID = SkudID::FromJSON(jsonObject);
+                    ui->pte_Log->appendPlainText("SKUD event. Key number: "
+                                                 + newSkudID.keyNumber
                                                  + " event date "
-                                                 + eventDate.toString());
-                    if (!keyNumber.isEmpty()
-                            && eventType != 3)
+                                                 + newSkudID.eventDateTime.toString());
+                    if (!newSkudID.keyNumber.isEmpty()
+                            && newSkudID.event != 3)
                     {
                         // find faceId event
-                        auto it = m_faceIdCache.findByKeyNumber(keyNumber);
+                        auto it = m_faceIdCache.findByKeyNumber(newSkudID.keyNumber);
                         if (eventId == INT_MAX) eventId = std::rand();
                         if (it != m_faceIdCache.cache().end()) {
                             ui->pte_Log->appendPlainText("Matching faceID found...");
@@ -279,9 +229,14 @@ MainWindow::MainWindow(QWidget *parent)
                                 event.id = QString::number(eventId++);
                                 event.latitude = 55.927916;
                                 event.longitude = 37.851449;
-                                event.occurred = eventDate.toSecsSinceEpoch();
+                                event.occurred = newSkudID.eventDateTime.toSecsSinceEpoch();
                                 event.system_id = 17;
                                 event.incident_type = "26.2";
+                                event.reason = "У сотрудника ("
+                                               + it->name
+                                               + ") повышенная температура тела ("
+                                               + QString::number(it->temp)
+                                               + " С)";
                                 send({event});
                             }
                             m_faceIdCache.cache().erase(it);
@@ -291,23 +246,40 @@ MainWindow::MainWindow(QWidget *parent)
                             /// @note match not found, wait 30 seconds
                             ui->pte_Log->appendPlainText("Matching faceID not found, waiting 10 seconds...");
                             QTimer::singleShot(10000, this, [this,
-                                               keyNumber,
-                                               eventDate,
-                                               eventType]()
+                                               newSkudID]()
                             {
-                                auto it = m_faceIdCache.findByKeyNumber(keyNumber);
+                                auto it = m_faceIdCache.findByKeyNumber(newSkudID.keyNumber);
                                 if (it == m_faceIdCache.cache().end()
-                                        && eventType != 3) {
+                                        && newSkudID.event != 3) {
                                     /// @note send message
                                     //
                                     ui->pte_Log->appendPlainText("Matching faceID still not found, sending message...");
+                                    auto closestIt = m_faceIdCache.findClosestByTime(newSkudID.eventDateTime);
                                     Event event;
                                     event.id = QString::number(eventId++);
                                     event.latitude = 55.927916;
                                     event.longitude = 37.851449;
-                                    event.occurred = eventDate.toSecsSinceEpoch();
+                                    event.occurred = newSkudID.eventDateTime.toSecsSinceEpoch();
                                     event.system_id = 17;
                                     event.incident_type = "26.1";
+                                    if (closestIt != m_faceIdCache.cache().end()) {
+                                        event.reason = "Сотрудник ("
+                                                       + closestIt->name
+                                                       + ") прошел по чужому пропуску ("
+                                                       + m_relationModel->findIndex(
+                                                           "emp_name",
+                                                           "key_number",
+                                                           newSkudID.keyNumber).data().toString()
+                                                       + ")";
+                                    } else {
+                                        event.reason = "Неопознанные лица прошли по пропуску сотрудника ("
+                                                       + m_relationModel->findIndex(
+                                                           "emp_name",
+                                                           "key_number",
+                                                           newSkudID.keyNumber).data().toString()
+                                                       + ")";
+                                    }
+                                    m_faceIdCache.cache().clear();
                                     send({event});
                                 } else {
                                     ui->pte_Log->appendPlainText("Matching faceID found...");
@@ -317,9 +289,14 @@ MainWindow::MainWindow(QWidget *parent)
                                         event.id = QString::number(eventId++);
                                         event.latitude = 55.927916;
                                         event.longitude = 37.851449;
-                                        event.occurred = eventDate.toSecsSinceEpoch();
+                                        event.occurred = newSkudID.eventDateTime.toSecsSinceEpoch();
                                         event.system_id = 17;
                                         event.incident_type = "26.2";
+                                        event.reason = "У сотрудника ("
+                                                       + it->name
+                                                       + ") повышенная температура тела ("
+                                                       + QString::number(it->temp)
+                                                       + " С)";
                                         send({event});
                                     }
                                     m_faceIdCache.cache().erase(it);
@@ -414,7 +391,6 @@ MainWindow::MainWindow(QWidget *parent)
             model->select();
         }
         ui->tv_SelectedTableContents->setModel(model);
-        updateSqlScript(table);
     });
 
     connect(ui->listWidget, &SqlListWidget::addToWatchList,
@@ -472,7 +448,7 @@ MainWindow::MainWindow(QWidget *parent)
                     // JSON
                     jsonArray.push_back(jsonRecord);
                     // LOGGING
-                    ui->pte_Log->appendPlainText(logText);
+                    //ui->pte_Log->appendPlainText(logText);
                 }
                 QJsonObject jsonMsg;
                 jsonMsg.insert("messageType", "ecall");
@@ -495,7 +471,7 @@ MainWindow::MainWindow(QWidget *parent)
                 }
 
                 // LOGGING
-                ui->pte_Log->appendPlainText(msg);
+                //ui->pte_Log->appendPlainText(msg);
             });
         }
     });
@@ -529,210 +505,13 @@ void MainWindow::send(const QList<Event> &eventList)
         obj.insert("incident_type", event.incident_type);
         obj.insert("id", event.id);
         obj.insert("system_id", event.system_id);
+        obj.insert("reason", event.reason);
         array.append(obj);
     }
     QJsonDocument doc(array);
     ui->pte_Log->appendPlainText("Sending request to " + request.url().toString());
     ui->pte_Log->appendPlainText("Request body :" + doc.toJson());
     m_networkManager->post(request, doc.toJson());
-}
-
-void MainWindow::updateSqlScript(const QString& table)
-{
-    auto record = dbconn.record(table);
-    auto primaryKey = QString {"id"};
-
-    QString viewSchema = "catalogs.";
-    QString tableSchema = "public.";
-
-    QString viewName = viewSchema + table;
-    QString viewText;
-    QTextStream vts (&viewText);
-    vts << "--DROP VIEW IF EXISTS " << viewName << ";\n\n";
-    vts << "CREATE OR REPLACE VIEW " << viewName << " AS\n" << "SELECT\n";
-
-    QString insertFunctionText;
-    QTextStream ifsText (&insertFunctionText);
-    QString insertFunctionName = viewName + "_insert ()";
-
-    ifsText << "--DROP FUNCTION IF EXISTS " << insertFunctionName << ";\n\n";
-    ifsText << "CREATE OR REPLACE FUNCTION " << insertFunctionName << "\n";
-    ifsText << "\t" << "RETURNS trigger" << "\n" <<
-               "\t" << "LANGUAGE 'plpgsql'" << "\n" <<
-               "\t" << "COST 100" << "\n" <<
-               "\t" << "VOLATILE NOT LEAKPROOF SECURITY DEFINER" << "\n" <<
-               "AS $BODY$" << "\n" <<
-               "DECLARE new_id integer;\n" <<
-               "DECLARE new_row record;\n";
-    ifsText << "BEGIN" << "\n";
-    ifsText << "\t" << "INSERT INTO " << tableSchema << table << "\n\t(\n";
-
-    QString updateFunctionText;
-    QTextStream ufsText (&updateFunctionText);
-    QString updateFunctionName = viewName + "_update ()";
-
-    ufsText << "--DROP FUNCTION IF EXISTS " << updateFunctionName << ";\n\n";
-    ufsText << "CREATE OR REPLACE FUNCTION " << updateFunctionName << "\n";
-    ufsText << "\t" << "RETURNS trigger" << "\n" <<
-               "\t" << "LANGUAGE 'plpgsql'" << "\n" <<
-               "\t" << "COST 100" << "\n" <<
-               "\t" << "VOLATILE NOT LEAKPROOF SECURITY DEFINER" << "\n" <<
-               "AS $BODY$" << "\n";
-
-    if (record.contains("deleted_at")) {
-        ufsText << "DECLARE deleted_timestamp timestamp with time zone;\n";
-    }
-    ufsText << "BEGIN" << "\n";
-    if (record.contains("deleted_at")) {
-        ufsText << "\t" << "IF NEW.deleted AND OLD.deleted THEN" << "\n" <<
-                   "\t" << "\t" << "deleted_timestamp := (SELECT deleted_at FROM " << tableSchema <<
-                   table << " WHERE " << primaryKey << " = OLD.id);" << "\n" <<
-                   "\t" << "ELSIF NEW.deleted THEN" << "\n" <<
-                   "\t" << "\t" << "deleted_timestamp := NOW();" << "\n" <<
-                   "\t" << "ELSE" << "\n" <<
-                   "\t" << "\t" << "deleted_timestamp := NULL;" << "\n" <<
-                   "\t" << "END IF;" << "\n\n";
-    }
-    ufsText << "\t" << "UPDATE " << tableSchema << table <<
-               "\n" << "\t" << " SET \n";
-
-    QString deleteFunctionText;
-    QTextStream dfsText (&deleteFunctionText);
-    QString deleteFunctionName = viewName + "_delete ()";
-
-    dfsText << "--DROP FUNCTION IF EXISTS " << deleteFunctionName << ";\n\n";
-    dfsText << "CREATE OR REPLACE FUNCTION " << deleteFunctionName << "\n";
-    dfsText << "\t" << "RETURNS trigger" << "\n" <<
-               "\t" << "LANGUAGE 'plpgsql'" << "\n" <<
-               "\t" << "COST 100" << "\n" <<
-               "\t" << "VOLATILE NOT LEAKPROOF SECURITY DEFINER" << "\n" <<
-               "AS $BODY$" << "\n" <<
-               "BEGIN" << "\n";
-
-    if (record.contains("deleted_at")) {
-        dfsText << "\t" << "UPDATE " << tableSchema << table << " SET deleted_at = NOW()" <<
-                   " WHERE " << primaryKey << " = OLD." << primaryKey << ";\n";
-    } else {
-        dfsText << "\t" << "DELETE FROM " << tableSchema << table <<
-                   " WHERE " << primaryKey << " = OLD." << primaryKey << ";\n";
-    }
-    dfsText << "\t" << "RETURN NULL;\n\n";
-    dfsText << "END;\n" << "$BODY$;" << "\n\n";
-    dfsText << "ALTER FUNCTION " << deleteFunctionName << "\n" <<
-               "\t" << "OWNER TO admin;\n\n";
-
-    for (int i = 0; i < record.count(); i++) {
-        auto field = record.field(i);
-        if (field.name() == "deleted_at") {
-            vts << "\t" << "(" << table << "." << field.name() <<
-                   " IS NOT NULL" << ")" << " AS deleted";
-            if (i < record.count() - 1) {
-                vts << ",";
-            }
-            vts << "\n";
-        } else {
-            vts << "\t" << table << "." << field.name();
-            if (i < record.count() - 1) {
-                vts << ",";
-            }
-            vts << "\n";
-        }
-
-        if (field.name() != primaryKey && field.name() != "deleted_at") {
-            ifsText << "\t" << "\t" << field.name();
-            if (i < record.count() - 1
-                    && !(i+1 == record.count() - 1 && record.field(i+1).name() == "deleted_at")) {
-                ifsText << ",";
-            }
-            ifsText << "\n";
-        }
-
-        if (field.name() != primaryKey) {
-            ufsText << "\t" << "\t" << field.name() << " = ";
-            if (field.name() == "deleted_at") {
-                ufsText << "deleted_timestamp";
-            } else {
-                ufsText << "NEW." << field.name();
-            }
-            if (i < record.count() - 1) {
-                ufsText << ",";
-            }
-            ufsText << "\n";
-        }
-    }
-
-    vts << "FROM " << tableSchema << table << ";\n\n";
-
-    ifsText << "\t" << ") VALUES (\n";
-
-    for (int i = 0; i < record.count(); i++) {
-        auto field = record.field(i);
-        if (field.name() != primaryKey && field.name() != "deleted_at") {
-            ifsText << "\t" << "\t" << "NEW." << field.name();
-            if (i < record.count() - 1
-                    && !(i+1 == record.count() - 1 && record.field(i+1).name() == "deleted_at")) {
-                ifsText << ",";
-            }
-            ifsText << "\n";
-        }
-    }
-
-    ifsText << "\t" << ")\n" << "\t" << "RETURNING " << primaryKey << " INTO new_id;\n\n";
-    ifsText << "SELECT * INTO new_row FROM " << viewName << " WHERE " <<
-               primaryKey << " = new_id;\n\n";
-    ifsText << "RETURN new_row;\n\nEXCEPTION WHEN unique_violation THEN\n" <<
-               "RAISE EXCEPTION 'record already exists';\n\n";
-
-    ifsText << "END;\n" << "$BODY$;" << "\n\n";
-    ifsText << "ALTER FUNCTION " << insertFunctionName << "\n" <<
-               "\t" << "OWNER TO admin;\n\n";
-    ufsText << "\t" << "\n";
-    ufsText << "\t" << "WHERE  " << primaryKey << " = NEW." << primaryKey << ";\n\n";
-    ufsText << "\t" << "RETURN NEW;\n\n";
-
-    ufsText << "END;\n" << "$BODY$;" << "\n\n";
-    ufsText << "ALTER FUNCTION " << updateFunctionName << "\n" <<
-               "\t" << "OWNER TO admin;\n\n";
-
-    QString iTrgText;
-    QTextStream iTrgTS (&iTrgText);
-    QString iTrgName = table + "_insert_trg";
-
-    iTrgTS << "CREATE TRIGGER " << iTrgName << "\n";
-    iTrgTS << "\t"  << "INSTEAD OF INSERT" << "\n";
-    iTrgTS << "\t"  << "ON " << viewName << "\n";
-    iTrgTS << "\t"  << "FOR EACH ROW" << "\n";
-    iTrgTS << "\t"  << "EXECUTE PROCEDURE " << insertFunctionName << ";" << "\n" << "\n";
-
-    QString uTrgText;
-    QTextStream uTrgTS (&uTrgText);
-    QString uTrgName = table + "_update_trg";
-
-    uTrgTS << "CREATE TRIGGER " << uTrgName << "\n";
-    uTrgTS << "\t"  << "INSTEAD OF UPDATE" << "\n";
-    uTrgTS << "\t"  << "ON " << viewName << "\n";
-    uTrgTS << "\t"  << "FOR EACH ROW" << "\n";
-    uTrgTS << "\t"  << "EXECUTE PROCEDURE " << updateFunctionName << ";" << "\n" << "\n";
-
-    QString dTrgText;
-    QTextStream dTrgTS (&dTrgText);
-    QString dTrgName = table + "_delete_trg";
-
-    dTrgTS << "CREATE TRIGGER " << dTrgName << "\n";
-    dTrgTS << "\t"  << "INSTEAD OF DELETE" << "\n";
-    dTrgTS << "\t"  << "ON " << viewName << "\n";
-    dTrgTS << "\t"  << "FOR EACH ROW" << "\n";
-    dTrgTS << "\t"  << "EXECUTE PROCEDURE " << deleteFunctionName << ";" << "\n" << "\n";
-
-    ui->te_Output->setText(
-                viewText
-                + insertFunctionText
-                + updateFunctionText
-                + deleteFunctionText
-                + iTrgText
-                + uTrgText
-                + dTrgText
-                );
 }
 
 void MainWindow::insertRandomFaceId()
@@ -799,5 +578,56 @@ void MainWindow::insertRandomFaceId()
     auto query = ThreadingCommon::DBConn::instance()->db().exec(request);
     ui->pte_Log->appendPlainText(query.lastError().text());
 
+}
+
+void MainWindow::insertRandomSkudId()
+{
+    static std::vector<std::pair<QString, QString>> emps {
+        {"00 00 00 D7 9B 4A", "C800h"},
+        {"00 00 00 D7 62 40", "D800h"}
+    };
+    QFile file {m_skudFilePath};
+    while (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {};
+    QString all = file.readAll();
+    file.close();
+    int pos = 0;
+    auto it = std::find(all.rbegin(), all.rend(), ';');
+    if (it != all.rend()) {
+        auto next = std::find(it + 1, all.rend(), ';');
+        QString number;
+        while (next != it) {
+            auto c = *--next;
+            if (c != ';') {
+                number += c;
+            }
+        }
+        pos = number.toInt();
+    }
+    QByteArray dataToWrite;
+    auto index = std::rand() % emps.size();
+    auto emp = emps[index];
+    auto currentTime = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss");
+    while (!file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {};
+    QTextStream ts{&file};
+    ts << currentTime
+       << ";0;3;"
+       << emp.first
+       <<";;"
+      << emp.second
+      << ";"
+      << QString::number(++pos)
+      << ";"
+      << "\n";
+    ts << currentTime
+       << ";0;10;"
+       << emp.first
+       <<";;"
+      << emp.second
+      << ";"
+      << QString::number(++pos)
+      << ";"
+      << "\n";
+    //file.write(dataToWrite);
+    file.close();
 }
 

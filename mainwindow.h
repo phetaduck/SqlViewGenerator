@@ -6,6 +6,7 @@
 #include <QLocalServer>
 #include <QFileSystemWatcher>
 #include <QNetworkAccessManager>
+#include <filepolling.h>
 
 #include <memory>
 #include <unordered_map>
@@ -23,10 +24,13 @@ struct Event {
     QString incident_type;
     QString id;
     qint64 system_id;
+    QString reason;
 };
 
 class TableColumnView;
 class SqlTableModel;
+class SQLSyntaxHighlighter;
+class AutoSqlTableModel;
 
 class MainWindow : public QMainWindow
 {
@@ -38,6 +42,7 @@ public:
 
 public slots:
     void insertRandomFaceId();
+    void insertRandomSkudId();
 
 
 private:
@@ -49,13 +54,15 @@ private:
     QNetworkAccessManager *m_networkManager = nullptr;
 
     QString m_relationtable = "id_key_number";
+    QString m_skudFilePath;
+
     FaceIDCache m_faceIdCache;
     SkudIDCache m_skudIdCache;
-    QFileSystemWatcher* m_fsWatcher = nullptr;
-    qint64 m_watchedFileSize = 0;
+    FilePolling* m_fsWatcher = nullptr;
 
     QSqlDatabase dbconn;
 
-    void updateSqlScript(const QString& table);
+    SQLSyntaxHighlighter* m_highlighter = nullptr;
+
     void send(const QList<Event> &eventList);
 };

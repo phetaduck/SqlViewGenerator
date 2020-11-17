@@ -8,5 +8,10 @@
         <file>res/outline_save_black_24dp.png</file>
         <file>res/round_folder_open_black_24dp.png</file>
         <file>res/round_play_arrow_black_24dp.png</file>
+        <file>res/outline_add_a_photo_black_24dp.png</file>
+        <file>res/outline_add_box_black_24dp.png</file>
+        <file>res/outline_addchart_black_24dp.png</file>
+        <file>res/outline_credit_card_black_24dp.png</file>
+        <file>res/outline_face_black_24dp.png</file>
     </qresource>
 </RCC>
