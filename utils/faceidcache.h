@@ -21,7 +21,9 @@ struct FaceID
         FaceID out;
         out.userId = jsonObject.value("emp_id").toInt();
         out.keyNumber = jsonObject.value("key_number").toString();
-        out.temp = jsonObject.value("temperature").toString().toDouble();
+        QLocale cLocale{QLocale::Russian};
+        auto jsonValueString = jsonObject.value("temperature").toString();
+        out.temp = cLocale.toDouble(jsonValueString);
         out.eventTime = QDateTime::fromString(
                             jsonObject.value("punch_time").toString(),
                             "yyyy-MM-ddThh:mm:ss.zzz");

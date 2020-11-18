@@ -61,11 +61,11 @@ void connectActionToPageCreation(QAction* action) {
 template< typename T >
 std::string int_to_hex( T i )
 {
-  std::stringstream stream;
-  stream << "\\u"
-         << std::setfill ('0') << std::setw(sizeof(T))
-         << std::hex << i;
-  return stream.str();
+    std::stringstream stream;
+    stream << "\\u"
+           << std::setfill ('0') << std::setw(sizeof(T))
+           << std::hex << i;
+    return stream.str();
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -91,6 +91,8 @@ MainWindow::MainWindow(QWidget *parent)
         reply->deleteLater();
     });
 
+    ui->dsb_MaxTemp->setValue(settings.maxTemp());
+
     ui->le_Protocol->setText(settings.lastRemoteProtocol());
     ui->le_RemoteAddress->setText(settings.lastRemoteServer());
     ui->le_RemoteApi->setText(settings.lastRemoteAPI());
@@ -110,6 +112,15 @@ MainWindow::MainWindow(QWidget *parent)
     ui->le_WatchFile->setText(settings.watchFile());
 
     m_fsWatcher = new FilePolling (this);
+
+    connect(ui->dsb_MaxTemp, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [](double value)
+    {
+        auto settings = Application::app()->settings();
+        if (value != settings.maxTemp()) {
+            settings.setMaxTemp(value);
+        }
+    });
 
     connect(ui->tb_AddSkudID, &QToolButton::clicked,
             this, &MainWindow::insertRandomSkudId);
@@ -205,25 +216,44 @@ MainWindow::MainWindow(QWidget *parent)
                         for (const auto& jsonValue : faceIdJsonArray) {
                             auto faceIdJson = jsonValue.toObject();
                             auto newFaceID = FaceID::FromJSON(faceIdJson);
+                            ui->pte_Log->appendPlainText(faceIdJson.value("temperature").toString());
+                            QLocale cLocale{QLocale::Russian};
+                            auto jsonValueString = faceIdJson.value("temperature").toString();
+                            ui->pte_Log->appendPlainText(QString::number(
+                                        cLocale.toDouble(jsonValueString)));
+                            ui->pte_Log->appendPlainText(QString::number(
+                                        jsonValueString.toDouble()));
+                            ui->pte_Log->appendPlainText(QString::number(
+                                        faceIdJson.value("temperature").toDouble()));
+                            ui->pte_Log->appendPlainText("New FaceID temp: " + QString::number(newFaceID.temp, 'f', 2));
                             m_faceIdCache.addFaceIDEvent(newFaceID);
                         }
                     }
                 } else {
                     // skud
                     auto newSkudID = SkudID::FromJSON(jsonObject);
-                    ui->pte_Log->appendPlainText("SKUD event. Key number: "
-                                                 + newSkudID.keyNumber
-                                                 + " event date "
-                                                 + newSkudID.eventDateTime.toString());
-                    if (!newSkudID.keyNumber.isEmpty()
-                            && newSkudID.event != 3)
+                    if (!newSkudID.keyNumber.isEmpty())
                     {
                         // find faceId event
                         auto it = m_faceIdCache.findByKeyNumber(newSkudID.keyNumber);
                         if (eventId == INT_MAX) eventId = std::rand();
                         if (it != m_faceIdCache.cache().end()) {
+                            auto foundFaceID = *it;
+                            ui->pte_Log->appendPlainText("SKUD event. Key number: "
+                                                         + newSkudID.keyNumber
+                                                         + " event date "
+                                                         + newSkudID.eventDateTime.toString()
+                                                         + " name "
+                                                         + newSkudID.name
+                                                         + " temperature "
+                                                         + QString::number(foundFaceID.temp));
+                            auto settings = Application::app()->settings();
                             ui->pte_Log->appendPlainText("Matching faceID found...");
-                            if (it->temp > 37.0) {
+                            if (foundFaceID.temp > ui->dsb_MaxTemp->value()) {
+                                auto empName = newSkudID.name;
+                                if (empName.isEmpty()) {
+                                    empName = foundFaceID.name;
+                                }
                                 ui->pte_Log->appendPlainText("Temperature is above threshold, sending event...");
                                 Event event;
                                 event.id = QString::number(eventId++);
@@ -233,9 +263,9 @@ MainWindow::MainWindow(QWidget *parent)
                                 event.system_id = 17;
                                 event.incident_type = "26.2";
                                 event.reason = "У сотрудника ("
-                                               + it->name
+                                               + empName
                                                + ") повышенная температура тела ("
-                                               + QString::number(it->temp)
+                                               + QString::number(foundFaceID.temp, 'f', 2)
                                                + " С)";
                                 send({event});
                             }
@@ -249,41 +279,16 @@ MainWindow::MainWindow(QWidget *parent)
                                                newSkudID]()
                             {
                                 auto it = m_faceIdCache.findByKeyNumber(newSkudID.keyNumber);
-                                if (it == m_faceIdCache.cache().end()
-                                        && newSkudID.event != 3) {
-                                    /// @note send message
-                                    //
-                                    ui->pte_Log->appendPlainText("Matching faceID still not found, sending message...");
-                                    auto closestIt = m_faceIdCache.findClosestByTime(newSkudID.eventDateTime);
-                                    Event event;
-                                    event.id = QString::number(eventId++);
-                                    event.latitude = 55.927916;
-                                    event.longitude = 37.851449;
-                                    event.occurred = newSkudID.eventDateTime.toSecsSinceEpoch();
-                                    event.system_id = 17;
-                                    event.incident_type = "26.1";
-                                    if (closestIt != m_faceIdCache.cache().end()) {
-                                        event.reason = "Сотрудник ("
-                                                       + closestIt->name
-                                                       + ") прошел по чужому пропуску ("
-                                                       + m_relationModel->findIndex(
-                                                           "emp_name",
-                                                           "key_number",
-                                                           newSkudID.keyNumber).data().toString()
-                                                       + ")";
-                                    } else {
-                                        event.reason = "Неопознанные лица прошли по пропуску сотрудника ("
-                                                       + m_relationModel->findIndex(
-                                                           "emp_name",
-                                                           "key_number",
-                                                           newSkudID.keyNumber).data().toString()
-                                                       + ")";
-                                    }
-                                    m_faceIdCache.cache().clear();
-                                    send({event});
-                                } else {
+                                if (it != m_faceIdCache.cache().end()) {
+                                    auto foundFaceID = *it;
                                     ui->pte_Log->appendPlainText("Matching faceID found...");
-                                    if (it->temp > 37.0) {
+                                    ui->pte_Log->appendPlainText("Temperature: "
+                                                                 + QString::number(foundFaceID.temp, 'f', 2));
+                                    if (foundFaceID.temp > ui->dsb_MaxTemp->value()) {
+                                        auto empName = newSkudID.name;
+                                        if (empName.isEmpty()) {
+                                            empName = foundFaceID.name;
+                                        }
                                         ui->pte_Log->appendPlainText("Temperature is above threshold, sending event...");
                                         Event event;
                                         event.id = QString::number(eventId++);
@@ -293,15 +298,48 @@ MainWindow::MainWindow(QWidget *parent)
                                         event.system_id = 17;
                                         event.incident_type = "26.2";
                                         event.reason = "У сотрудника ("
-                                                       + it->name
+                                                       + empName
                                                        + ") повышенная температура тела ("
-                                                       + QString::number(it->temp)
+                                                       + QString::number(foundFaceID.temp, 'f', 2)
                                                        + " С)";
                                         send({event});
                                     }
                                     m_faceIdCache.cache().erase(it);
                                     ui->pte_Log->appendPlainText("Removed faceID from cache");
                                     /// @note match found. high temp
+                                } else {
+                                    auto empName = newSkudID.name;
+                                    if (empName.isEmpty()) {
+                                        empName = m_relationModel->findIndex(
+                                                      "emp_name",
+                                                      "key_number",
+                                                      newSkudID.keyNumber).data().toString();
+                                    }
+                                    /// @note send message
+                                    //
+                                    ui->pte_Log->appendPlainText("Matching faceID still not found, sending message...");
+                                    Event event;
+                                    event.id = QString::number(eventId++);
+                                    event.latitude = 55.927916;
+                                    event.longitude = 37.851449;
+                                    event.occurred = newSkudID.eventDateTime.toSecsSinceEpoch();
+                                    event.system_id = 17;
+                                    event.incident_type = "26.1";
+                                    auto closestIt = m_faceIdCache.findClosestByTime(newSkudID.eventDateTime);
+                                    if (closestIt != m_faceIdCache.cache().end()) {
+                                        auto closestFaceId = *closestIt;
+                                        event.reason = "Сотрудник ("
+                                                       + closestFaceId.name
+                                                       + ") прошел по чужому пропуску ("
+                                                       + empName
+                                                       + ")";
+                                    } else {
+                                        event.reason = "Неопознанные лица прошли по пропуску сотрудника ("
+                                                       + empName
+                                                       + ")";
+                                    }
+                                    m_faceIdCache.cache().clear();
+                                    send({event});
                                 }
                             });
                         }
@@ -436,9 +474,9 @@ MainWindow::MainWindow(QWidget *parent)
                             && m_relationModel->record().contains("id"))
                     {
                         keyCard = m_relationModel->findIndex(
-                                           "key_number",
-                                           "id",
-                                           record.value("emp_id")).data().toString();
+                                      "key_number",
+                                      "id",
+                                      record.value("emp_id")).data().toString();
 
                     }
                     if (!keyCard.isEmpty()) {
@@ -521,8 +559,8 @@ void MainWindow::insertRandomFaceId()
         {10, "Кистанов"},
     };
     static std::vector<float> temps {
-       36.6f,
-       38.0f,
+        36.6f,
+        38.1f,
     };
 
     std::srand(std::time(0));

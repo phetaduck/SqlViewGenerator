@@ -38,6 +38,9 @@ public:
     void setWatchFile(const QString& value);
     auto watchFile() const -> QString;
 
+    void setMaxTemp(double value);
+    auto maxTemp() const -> double;
+
 private:
     static const QString LastLoginKey;
     static const QString DbHostNameKey;
@@ -52,4 +55,5 @@ private:
     static const QString LastRemoteServerNameKey;
     static const QString LastRemoteAPINameKey;
     static const QString WatchFileNameKey;
+    static const QString MaxTempNameKey;
 };

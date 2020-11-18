@@ -19,6 +19,8 @@ const QString Settings::LastRemoteAPINameKey = "remote/api";
 
 const QString Settings::WatchFileNameKey = "skud/watchFile";
 
+const QString Settings::MaxTempNameKey = "faceid/maxTemp";
+
 
 Settings::Settings()
     : QSettings(
@@ -160,6 +162,17 @@ auto Settings::watchFile() const -> QString
 {
     return value(WatchFileNameKey,
                  "C://Users//Виктория//AppData//Roaming//IronLogic//GuardCmd").toString();
+}
+
+void Settings::setMaxTemp(double value)
+{
+    setValue(MaxTempNameKey, value);
+}
+
+auto Settings::maxTemp() const -> double
+{
+    return value(MaxTempNameKey,
+                 37.0).toDouble();
 }
 
 
