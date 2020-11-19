@@ -40,9 +40,24 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    QJsonArray jsonFromRecordList(const QList<QSqlRecord>& records);
+
+    void highTempMsg(const FaceID& faceId, const SkudID& skudId);
+    void keyNumMismatchMsg(const SkudID& skudId);
+
 public slots:
     void insertRandomFaceId();
     void insertRandomSkudId();
+
+    void processPipeMessage(const QByteArray& data);
+    void processNewDBRecords(const QList<QSqlRecord>& records);
+    void fileExpanded(const QByteArray& data);
+
+    void processNetworkReply(QNetworkReply* reply);
+    void watchFile();
+
+    void processFaceID_JSON(const QJsonObject& jsonObject);
+    void processSkudID_JSON(const QJsonObject& jsonObject);
 
 
 private:

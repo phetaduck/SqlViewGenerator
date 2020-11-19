@@ -80,16 +80,8 @@ MainWindow::MainWindow(QWidget *parent)
     auto settings = Application::app()->settings();
 
     m_networkManager = new QNetworkAccessManager();
-    connect(m_networkManager, &QNetworkAccessManager::finished,
-            this, [this](QNetworkReply* reply)
-    {
-        if (reply->error() != QNetworkReply::NetworkError::NoError) {
-            ui->pte_Log->appendPlainText(reply->errorString());
-        } else {
-            ui->pte_Log->appendPlainText("successfully created event");
-        }
-        reply->deleteLater();
-    });
+
+    ui->pte_Log->appendPlainText(QLocale::system().name());
 
     ui->dsb_MaxTemp->setValue(settings.maxTemp());
 
@@ -113,6 +105,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_fsWatcher = new FilePolling (this);
 
+    connect(m_networkManager, &QNetworkAccessManager::finished,
+            this, &MainWindow::processNetworkReply);
+
     connect(ui->dsb_MaxTemp, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, [](double value)
     {
@@ -133,34 +128,7 @@ MainWindow::MainWindow(QWidget *parent)
                                      + " changed");
         ui->pte_Log->appendPlainText("New data: "
                                      + newData);
-
-        QTextStream in(newData);
-        while (!in.atEnd()) {
-            QString line = in.readLine();
-            QStringList values = line.split(';');
-            if (values.size() <= ColumnsNS::Position) {
-                ui->pte_Log->appendPlainText("missing columnd in csv file");
-                continue;
-            }
-            if (values.at(ColumnsNS::Event) == "3") continue;
-            QJsonObject obj;
-            obj.insert("eventDate", values.at(ColumnsNS::EventDate));
-            obj.insert("direct", values.at(ColumnsNS::Direct));
-            obj.insert("event", values.at(ColumnsNS::Event));
-            obj.insert("keyNumber", values.at(ColumnsNS::KeyNumber));
-            obj.insert("username", values.at(ColumnsNS::Username));
-            obj.insert("options", values.at(ColumnsNS::Options));
-            obj.insert("position", values.at(ColumnsNS::Position));
-            QJsonDocument doc;
-            doc.setObject(obj);
-            if (m_pipeConnection->isValid()) {
-                m_pipeConnection->write(doc.toJson());
-                //ui->pte_Log->appendPlainText("New lines: ");
-                //ui->pte_Log->appendPlainText(doc.toJson());
-            } else {
-
-            }
-        }
+        fileExpanded(newData);
     });
 
     connect(ui->tb_OpenWatchFile, &QToolButton::clicked,
@@ -174,20 +142,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(ui->pb_WatchFile, &QPushButton::clicked,
-            this, [this]()
-    {
-        auto filePath = ui->le_WatchFile->text();
-        QFileInfo file {filePath};
-        if (file.exists()) {
-            m_skudFilePath = filePath;
-            ui->pte_Log->appendPlainText("File: " + filePath + " exists");
-            m_fsWatcher->clearPaths();
-            m_fsWatcher->pollFile(filePath);
-            ui->pte_Log->appendPlainText("Watching file: " + filePath);
-        } else {
-            ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
-        }
-    });
+            this, &MainWindow::watchFile);
 
     connect(m_localServer.get(), &QLocalServer::newConnection,
             this, [this]()
@@ -200,152 +155,7 @@ MainWindow::MainWindow(QWidget *parent)
                     this, [this, pendingConnection]()
             {
                 auto buffer = pendingConnection->readAll();
-                ui->pte_Log->appendPlainText("New message:");
-                ui->pte_Log->appendPlainText(buffer);
-
-                auto json = QJsonDocument::fromJson(buffer);
-                auto jsonObject = json.object();
-                auto source = jsonObject.find("source");
-                if (source != jsonObject.end()
-                        && source->toString() == "faceid")
-                {
-                    // faceid
-                    auto oa_attendance_punch = jsonObject.find("oa_attendance_punch");
-                    if (oa_attendance_punch != jsonObject.end()) {
-                        auto faceIdJsonArray = jsonObject.value("oa_attendance_punch").toArray();
-                        for (const auto& jsonValue : faceIdJsonArray) {
-                            auto faceIdJson = jsonValue.toObject();
-                            auto newFaceID = FaceID::FromJSON(faceIdJson);
-                            ui->pte_Log->appendPlainText(faceIdJson.value("temperature").toString());
-                            QLocale cLocale{QLocale::Russian};
-                            auto jsonValueString = faceIdJson.value("temperature").toString();
-                            ui->pte_Log->appendPlainText(QString::number(
-                                        cLocale.toDouble(jsonValueString)));
-                            ui->pte_Log->appendPlainText(QString::number(
-                                        jsonValueString.toDouble()));
-                            ui->pte_Log->appendPlainText(QString::number(
-                                        faceIdJson.value("temperature").toDouble()));
-                            ui->pte_Log->appendPlainText("New FaceID temp: " + QString::number(newFaceID.temp, 'f', 2));
-                            m_faceIdCache.addFaceIDEvent(newFaceID);
-                        }
-                    }
-                } else {
-                    // skud
-                    auto newSkudID = SkudID::FromJSON(jsonObject);
-                    if (!newSkudID.keyNumber.isEmpty())
-                    {
-                        // find faceId event
-                        auto it = m_faceIdCache.findByKeyNumber(newSkudID.keyNumber);
-                        if (eventId == INT_MAX) eventId = std::rand();
-                        if (it != m_faceIdCache.cache().end()) {
-                            auto foundFaceID = *it;
-                            ui->pte_Log->appendPlainText("SKUD event. Key number: "
-                                                         + newSkudID.keyNumber
-                                                         + " event date "
-                                                         + newSkudID.eventDateTime.toString()
-                                                         + " name "
-                                                         + newSkudID.name
-                                                         + " temperature "
-                                                         + QString::number(foundFaceID.temp));
-                            auto settings = Application::app()->settings();
-                            ui->pte_Log->appendPlainText("Matching faceID found...");
-                            if (foundFaceID.temp > ui->dsb_MaxTemp->value()) {
-                                auto empName = newSkudID.name;
-                                if (empName.isEmpty()) {
-                                    empName = foundFaceID.name;
-                                }
-                                ui->pte_Log->appendPlainText("Temperature is above threshold, sending event...");
-                                Event event;
-                                event.id = QString::number(eventId++);
-                                event.latitude = 55.927916;
-                                event.longitude = 37.851449;
-                                event.occurred = newSkudID.eventDateTime.toSecsSinceEpoch();
-                                event.system_id = 17;
-                                event.incident_type = "26.2";
-                                event.reason = "У сотрудника ("
-                                               + empName
-                                               + ") повышенная температура тела ("
-                                               + QString::number(foundFaceID.temp, 'f', 2)
-                                               + " С)";
-                                send({event});
-                            }
-                            m_faceIdCache.cache().erase(it);
-                            ui->pte_Log->appendPlainText("Removed faceID from cache");
-                            /// @note match found. high temp
-                        } else {
-                            /// @note match not found, wait 30 seconds
-                            ui->pte_Log->appendPlainText("Matching faceID not found, waiting 10 seconds...");
-                            QTimer::singleShot(10000, this, [this,
-                                               newSkudID]()
-                            {
-                                auto it = m_faceIdCache.findByKeyNumber(newSkudID.keyNumber);
-                                if (it != m_faceIdCache.cache().end()) {
-                                    auto foundFaceID = *it;
-                                    ui->pte_Log->appendPlainText("Matching faceID found...");
-                                    ui->pte_Log->appendPlainText("Temperature: "
-                                                                 + QString::number(foundFaceID.temp, 'f', 2));
-                                    if (foundFaceID.temp > ui->dsb_MaxTemp->value()) {
-                                        auto empName = newSkudID.name;
-                                        if (empName.isEmpty()) {
-                                            empName = foundFaceID.name;
-                                        }
-                                        ui->pte_Log->appendPlainText("Temperature is above threshold, sending event...");
-                                        Event event;
-                                        event.id = QString::number(eventId++);
-                                        event.latitude = 55.927916;
-                                        event.longitude = 37.851449;
-                                        event.occurred = newSkudID.eventDateTime.toSecsSinceEpoch();
-                                        event.system_id = 17;
-                                        event.incident_type = "26.2";
-                                        event.reason = "У сотрудника ("
-                                                       + empName
-                                                       + ") повышенная температура тела ("
-                                                       + QString::number(foundFaceID.temp, 'f', 2)
-                                                       + " С)";
-                                        send({event});
-                                    }
-                                    m_faceIdCache.cache().erase(it);
-                                    ui->pte_Log->appendPlainText("Removed faceID from cache");
-                                    /// @note match found. high temp
-                                } else {
-                                    auto empName = newSkudID.name;
-                                    if (empName.isEmpty()) {
-                                        empName = m_relationModel->findIndex(
-                                                      "emp_name",
-                                                      "key_number",
-                                                      newSkudID.keyNumber).data().toString();
-                                    }
-                                    /// @note send message
-                                    //
-                                    ui->pte_Log->appendPlainText("Matching faceID still not found, sending message...");
-                                    Event event;
-                                    event.id = QString::number(eventId++);
-                                    event.latitude = 55.927916;
-                                    event.longitude = 37.851449;
-                                    event.occurred = newSkudID.eventDateTime.toSecsSinceEpoch();
-                                    event.system_id = 17;
-                                    event.incident_type = "26.1";
-                                    auto closestIt = m_faceIdCache.findClosestByTime(newSkudID.eventDateTime);
-                                    if (closestIt != m_faceIdCache.cache().end()) {
-                                        auto closestFaceId = *closestIt;
-                                        event.reason = "Сотрудник ("
-                                                       + closestFaceId.name
-                                                       + ") прошел по чужому пропуску ("
-                                                       + empName
-                                                       + ")";
-                                    } else {
-                                        event.reason = "Неопознанные лица прошли по пропуску сотрудника ("
-                                                       + empName
-                                                       + ")";
-                                    }
-                                    m_faceIdCache.cache().clear();
-                                    send({event});
-                                }
-                            });
-                        }
-                    }
-                }
-
+                processPipeMessage(buffer);
             });
         }
     });
@@ -441,75 +251,9 @@ MainWindow::MainWindow(QWidget *parent)
         if (!model->isSelectedAtLeastOnce()) {
             model->select();
             connect(model, &AutoSqlTableModel::newRecords,
-                    this, [this, model](QList<QSqlRecord> newRecords)
+                    this, [this](const QList<QSqlRecord>& newRecords)
             {
-                QJsonArray jsonArray;
-                for (const auto& record : newRecords) {
-                    // logging
-                    QString logText;
-                    QTextStream lts{&logText};
-                    lts << "New row in "
-                        << model->tableName()
-                        << "\n\t";
-
-                    // JSON
-                    QJsonObject jsonRecord;
-
-                    for (int i = 0; i < record.count(); i++) {
-                        auto fieldName = record.fieldName(i);
-                        auto fieldValue = record.value(i);
-
-                        // JSON
-                        jsonRecord.insert(fieldName, QJsonValue::fromVariant(fieldValue));
-
-                        // LOGGING
-                        lts << fieldName
-                            << ": "
-                            << fieldValue.toString()
-                            << "\n\t";
-                    }
-                    QString keyCard;
-                    if (m_relationModel
-                            && record.contains("emp_id")
-                            && m_relationModel->record().contains("id"))
-                    {
-                        keyCard = m_relationModel->findIndex(
-                                      "key_number",
-                                      "id",
-                                      record.value("emp_id")).data().toString();
-
-                    }
-                    if (!keyCard.isEmpty()) {
-                        jsonRecord.insert("key_number", keyCard);
-                    }
-
-                    // JSON
-                    jsonArray.push_back(jsonRecord);
-                    // LOGGING
-                    //ui->pte_Log->appendPlainText(logText);
-                }
-                QJsonObject jsonMsg;
-                jsonMsg.insert("messageType", "ecall");
-                static int i = 1;
-                if (i > 1000) {
-                    i = 1;
-                }
-                QString num = QString::fromStdString(int_to_hex(i++));
-                QString packectId {"source:faceid, pid:"};
-                packectId += num;
-
-                jsonMsg.insert("packetId", packectId);
-                jsonMsg.insert("source", "faceid");
-                jsonMsg.insert(model->tableName(), jsonArray);
-                QJsonDocument doc {jsonMsg};
-                auto msg = doc.toJson();
-                if (m_pipeConnection && m_pipeConnection->isValid()) {
-                    m_pipeConnection->write(msg);
-                    ui->pte_Log->appendPlainText("Message successfuly sent");
-                }
-
-                // LOGGING
-                //ui->pte_Log->appendPlainText(msg);
+                processNewDBRecords(newRecords);
             });
         }
     });
@@ -521,6 +265,66 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::highTempMsg(const FaceID& faceId, const SkudID& skudId)
+{
+    auto empName = skudId.name;
+    if (empName.isEmpty()) {
+        empName = faceId.name;
+    }
+    ui->pte_Log->appendPlainText("Temperature is above threshold, sending event...");
+    Event event;
+    event.id = QString::number(eventId++);
+    event.latitude = 55.927916;
+    event.longitude = 37.851449;
+    event.occurred = skudId.eventDateTime.toSecsSinceEpoch();
+    event.system_id = 17;
+    event.incident_type = "26.2";
+    event.reason = "У сотрудника ("
+                   + empName
+                   + ") повышенная температура тела ("
+                   + QString::number(faceId.temp, 'f', 2)
+                   + " С)";
+    send({event});
+
+}
+
+void MainWindow::keyNumMismatchMsg(const SkudID& skudId)
+{
+    auto empName = skudId.name;
+    if (empName.isEmpty()) {
+        empName = m_relationModel->findIndex(
+                      "emp_name",
+                      "key_number",
+                      skudId.keyNumber).data().toString();
+    }
+    /// @note send message
+    //
+    ui->pte_Log->appendPlainText("Matching faceID still not found, sending message...");
+    Event event;
+    event.id = QString::number(eventId++);
+    event.latitude = 55.927916;
+    event.longitude = 37.851449;
+    event.occurred = skudId.eventDateTime.toSecsSinceEpoch();
+    event.system_id = 17;
+    event.incident_type = "26.1";
+    auto closestIt = m_faceIdCache.findClosestByTime(skudId.eventDateTime);
+    if (closestIt != m_faceIdCache.cache().end()) {
+        auto closestFaceId = *closestIt;
+        event.reason = "Сотрудник ("
+                       + closestFaceId.name
+                       + ") прошел по чужому пропуску ("
+                       + empName
+                       + ")";
+        m_faceIdCache.cache().erase(closestIt);
+    } else {
+        event.reason = "Неопознанные лица прошли по пропуску сотрудника ("
+                       + empName
+                       + ")";
+        m_faceIdCache.cache().clear();
+    }
+    send({event});
 }
 
 void MainWindow::send(const QList<Event> &eventList)
@@ -667,5 +471,209 @@ void MainWindow::insertRandomSkudId()
       << "\n";
     //file.write(dataToWrite);
     file.close();
+}
+
+void MainWindow::processPipeMessage(const QByteArray& data)
+{
+    ui->pte_Log->appendPlainText("New message:");
+    ui->pte_Log->appendPlainText(data);
+
+    auto json = QJsonDocument::fromJson(data);
+    auto jsonObject = json.object();
+    auto source = jsonObject.find("source");
+    if (source != jsonObject.end()
+            && source->toString() == "faceid")
+    {
+        // faceid
+        processFaceID_JSON(jsonObject);
+    } else {
+        // skud
+        processSkudID_JSON(jsonObject);
+    }
+}
+
+void MainWindow::processNewDBRecords(const QList<QSqlRecord>& records)
+{
+    QJsonObject jsonMsg;
+    jsonMsg.insert("messageType", "ecall");
+    static int i = 1;
+    if (i > 1000) {
+        i = 1;
+    }
+    QString num = QString::fromStdString(int_to_hex(i++));
+    QString packectId {"source:faceid, pid:"};
+    packectId += num;
+
+    jsonMsg.insert("packetId", packectId);
+    jsonMsg.insert("source", "faceid");
+    jsonMsg.insert("records", jsonFromRecordList(records));
+    QJsonDocument doc {jsonMsg};
+    auto msg = doc.toJson();
+    if (m_pipeConnection && m_pipeConnection->isValid()) {
+        m_pipeConnection->write(msg);
+        ui->pte_Log->appendPlainText("Message successfuly sent");
+    }
+}
+
+void MainWindow::fileExpanded(const QByteArray& data)
+{
+    QTextStream in(data);
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        QStringList values = line.split(';');
+        if (values.size() <= ColumnsNS::Position) {
+            ui->pte_Log->appendPlainText("missing columnd in csv file");
+            continue;
+        }
+        if (values.at(ColumnsNS::Event) == "3") continue;
+        QJsonObject obj;
+        obj.insert("eventDate", values.at(ColumnsNS::EventDate));
+        obj.insert("direct", values.at(ColumnsNS::Direct));
+        obj.insert("event", values.at(ColumnsNS::Event));
+        obj.insert("keyNumber", values.at(ColumnsNS::KeyNumber));
+        obj.insert("username", values.at(ColumnsNS::Username));
+        obj.insert("options", values.at(ColumnsNS::Options));
+        obj.insert("position", values.at(ColumnsNS::Position));
+        QJsonDocument doc;
+        doc.setObject(obj);
+        if (m_pipeConnection->isValid()) {
+            m_pipeConnection->write(doc.toJson());
+            //ui->pte_Log->appendPlainText("New lines: ");
+            //ui->pte_Log->appendPlainText(doc.toJson());
+        } else {
+
+        }
+    }
+}
+
+void MainWindow::processNetworkReply(QNetworkReply* reply)
+{
+    if (reply->error() != QNetworkReply::NetworkError::NoError) {
+        ui->pte_Log->appendPlainText(reply->errorString());
+    } else {
+        ui->pte_Log->appendPlainText("successfully created event");
+    }
+    reply->deleteLater();
+}
+
+void MainWindow::watchFile()
+{
+    auto filePath = ui->le_WatchFile->text();
+    QFileInfo file {filePath};
+    if (file.exists()) {
+        m_skudFilePath = filePath;
+        ui->pte_Log->appendPlainText("File: " + filePath + " exists");
+        m_fsWatcher->clearPaths();
+        m_fsWatcher->pollFile(filePath);
+        ui->pte_Log->appendPlainText("Watching file: " + filePath);
+    } else {
+        ui->pte_Log->appendPlainText("Cannot open file: " + filePath);
+    }
+}
+
+void MainWindow::processFaceID_JSON(const QJsonObject& jsonObject)
+{
+    auto faceIdJsonArray = jsonObject.value("records").toArray();
+    for (const auto& jsonValue : faceIdJsonArray) {
+        auto faceIdJson = jsonValue.toObject();
+        auto newFaceID = FaceID::FromJSON(faceIdJson);
+        ui->pte_Log->appendPlainText(faceIdJson.value("temperature").toString());
+        QLocale cLocale{QLocale::Russian};
+        auto jsonValueString = faceIdJson.value("temperature").toString();
+        ui->pte_Log->appendPlainText(QString::number(
+                    cLocale.toDouble(jsonValueString)));
+        ui->pte_Log->appendPlainText(QString::number(
+                    jsonValueString.toDouble()));
+        ui->pte_Log->appendPlainText(QString::number(
+                    faceIdJson.value("temperature").toDouble()));
+        ui->pte_Log->appendPlainText("New FaceID temp: " + QString::number(newFaceID.temp, 'f', 2));
+        m_faceIdCache.addFaceIDEvent(newFaceID);
+    }
+}
+
+void MainWindow::processSkudID_JSON(const QJsonObject& jsonObject)
+{
+    auto newSkudID = SkudID::FromJSON(jsonObject);
+    if (!newSkudID.keyNumber.isEmpty())
+    {
+        // find faceId event
+        auto it = m_faceIdCache.findByKeyNumber(newSkudID.keyNumber);
+        if (eventId == INT_MAX) eventId = std::rand();
+        if (it != m_faceIdCache.cache().end()) {
+            auto foundFaceID = *it;
+            ui->pte_Log->appendPlainText("SKUD event. Key number: "
+                                         + newSkudID.keyNumber
+                                         + " event date "
+                                         + newSkudID.eventDateTime.toString()
+                                         + " name "
+                                         + newSkudID.name
+                                         + " temperature "
+                                         + QString::number(foundFaceID.temp));
+            ui->pte_Log->appendPlainText("Matching faceID found...");
+            if (foundFaceID.temp > ui->dsb_MaxTemp->value()) {
+                highTempMsg(foundFaceID, newSkudID);
+            }
+            m_faceIdCache.cache().erase(it);
+            ui->pte_Log->appendPlainText("Removed faceID from cache");
+            /// @note match found. high temp
+        } else {
+            /// @note match not found, wait 30 seconds
+            ui->pte_Log->appendPlainText("Matching faceID not found, waiting 10 seconds...");
+            QTimer::singleShot(10000, this, [this,
+                               newSkudID]()
+            {
+                auto it = m_faceIdCache.findByKeyNumber(newSkudID.keyNumber);
+                if (it != m_faceIdCache.cache().end()) {
+                    auto foundFaceID = *it;
+                    ui->pte_Log->appendPlainText("Matching faceID found...");
+                    ui->pte_Log->appendPlainText("Temperature: "
+                                                 + QString::number(foundFaceID.temp, 'f', 2));
+                    if (foundFaceID.temp > ui->dsb_MaxTemp->value()) {
+                        highTempMsg(foundFaceID, newSkudID);
+                    }
+                    m_faceIdCache.cache().erase(it);
+                    ui->pte_Log->appendPlainText("Removed faceID from cache");
+                    /// @note match found. high temp
+                } else {
+                    keyNumMismatchMsg(newSkudID);
+                }
+            });
+        }
+    }
+
+
+}
+
+QJsonArray MainWindow::jsonFromRecordList(const QList<QSqlRecord>& records)
+{
+    QJsonArray jsonArray;
+    for (const auto& record : records) {
+        // JSON
+        QJsonObject jsonRecord;
+
+        for (int i = 0; i < record.count(); i++) {
+            auto fieldName = record.fieldName(i);
+            auto fieldValue = record.value(i);
+
+            // JSON
+            jsonRecord.insert(fieldName, QJsonValue::fromVariant(fieldValue));
+        }
+        QString keyCard;
+        if (m_relationModel
+                && record.contains("emp_id")
+                && m_relationModel->record().contains("id"))
+        {
+            keyCard = m_relationModel->findIndex(
+                          "key_number",
+                          "id",
+                          record.value("emp_id")).data().toString();
+
+        }
+        if (!keyCard.isEmpty()) {
+            jsonRecord.insert("key_number", keyCard);
+        }
+        jsonArray.push_back(jsonRecord);
+    }
+    return jsonArray;
 }
 
