@@ -10,6 +10,15 @@ CONFIG += c++17 static
 
 SOURCES += \
     dialogs/authentificationdialog.cpp \
+    item_delegates/baseitemdelegate.cpp \
+    item_delegates/boolitemdelegate.cpp \
+    item_delegates/comboboxitemdelegate.cpp \
+    item_delegates/datetimeitemdelegate.cpp \
+    item_delegates/floatformatteditemdelegate.cpp \
+    item_delegates/htmlitemdelegate.cpp \
+    item_delegates/intformatteditemdelegate.cpp \
+    item_delegates/relationalitemdelegate.cpp \
+    item_delegates/styleditemdelegate.cpp \
     main.cpp \
     mainwindow.cpp \
     models/asyncsqltablemodel.cpp \
@@ -20,12 +29,22 @@ SOURCES += \
     utils/settings.cpp \
     utils/sqlsharedutils.cpp \
     utils/sqlsyntaxhighlighter.cpp \
+    views/classifierstableview.cpp \
     widgets/asyncsqlcombobox.cpp \
     widgets/filtersqlcombobox.cpp \
     widgets/sqlcombobox.cpp
 
 HEADERS += \
     dialogs/authentificationdialog.h \
+    item_delegates/baseitemdelegate.h \
+    item_delegates/boolitemdelegate.h \
+    item_delegates/comboboxitemdelegate.h \
+    item_delegates/datetimeitemdelegate.h \
+    item_delegates/floatformatteditemdelegate.h \
+    item_delegates/htmlitemdelegate.h \
+    item_delegates/intformatteditemdelegate.h \
+    item_delegates/relationalitemdelegate.h \
+    item_delegates/styleditemdelegate.h \
     mainwindow.h \
     models/asyncsqltablemodel.h \
     models/searchablesqltablemodel.h \
@@ -35,6 +54,7 @@ HEADERS += \
     utils/settings.h \
     utils/sqlsharedutils.h \
     utils/sqlsyntaxhighlighter.h \
+    views/classifierstableview.h \
     widgets/asyncsqlcombobox.h \
     widgets/filtersqlcombobox.h \
     widgets/sqlcombobox.h
