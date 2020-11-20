@@ -29,7 +29,7 @@ SOURCES += \
     utils/settings.cpp \
     utils/sqlsharedutils.cpp \
     utils/sqlsyntaxhighlighter.cpp \
-    views/classifierstableview.cpp \
+    views/sqltableview.cpp \
     widgets/asyncsqlcombobox.cpp \
     widgets/filtersqlcombobox.cpp \
     widgets/sqlcombobox.cpp
@@ -54,7 +54,7 @@ HEADERS += \
     utils/settings.h \
     utils/sqlsharedutils.h \
     utils/sqlsyntaxhighlighter.h \
-    views/classifierstableview.h \
+    views/sqltableview.h \
     widgets/asyncsqlcombobox.h \
     widgets/filtersqlcombobox.h \
     widgets/sqlcombobox.h

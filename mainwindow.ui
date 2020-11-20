@@ -18,7 +18,7 @@
     <item row="1" column="0" rowspan="3">
      <widget class="QGroupBox" name="groupBox">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -27,24 +27,68 @@
        <string>Run commands</string>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
+       <item row="2" column="0" colspan="4">
+        <widget class="QPlainTextEdit" name="pte_Commands"/>
+       </item>
        <item row="0" column="0">
+        <widget class="QToolButton" name="tb_SaveSql">
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="images.qrc">
+           <normaloff>:/img/res/outline_save_black_24dp.png</normaloff>:/img/res/outline_save_black_24dp.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>24</width>
+           <height>24</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
         <widget class="QToolButton" name="tb_RunCommands">
          <property name="text">
           <string>...</string>
          </property>
+         <property name="icon">
+          <iconset resource="images.qrc">
+           <normaloff>:/img/res/round_play_arrow_black_24dp.png</normaloff>:/img/res/round_play_arrow_black_24dp.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>24</width>
+           <height>24</height>
+          </size>
+         </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QPlainTextEdit" name="pte_Commands"/>
+       <item row="0" column="1">
+        <widget class="QToolButton" name="tb_OpenSql">
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="images.qrc">
+           <normaloff>:/img/res/round_folder_open_black_24dp.png</normaloff>:/img/res/round_folder_open_black_24dp.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>24</width>
+           <height>24</height>
+          </size>
+         </property>
+        </widget>
        </item>
-       <item row="2" column="0">
+       <item row="3" column="0" colspan="4">
         <widget class="QPlainTextEdit" name="pte_Log"/>
        </item>
       </layout>
      </widget>
     </item>
     <item row="3" column="1">
-     <widget class="QTableView" name="tv_SelectedTableContents">
+     <widget class="SqlTableView" name="tv_SelectedTableContents">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -151,7 +195,14 @@
    <extends>QComboBox</extends>
    <header location="global">widgets/asyncsqlcombobox.h</header>
   </customwidget>
+  <customwidget>
+   <class>SqlTableView</class>
+   <extends>QTableView</extends>
+   <header location="global">views/sqltableview.h</header>
+  </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="images.qrc"/>
+ </resources>
  <connections/>
 </ui>

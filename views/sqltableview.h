@@ -7,19 +7,8 @@
 class SearchableSqlTableModel;
 
 /**
- * @struct Структура настроек таблицы классификатора
+ * @struct Структура настроек таблицы
  */
-struct ClassifierSettings
-{
-    QString TableName; ///< Имя таблицы
-    std::vector<int> HiddenColumns = {}; ///< Колонки не показываемые пользователю
-    QHash<int, QString> Headers = {}; ///< Заголовки колонок
-    QHash<int, QSqlRelation> Relations = {}; ///< Словарь отношений в реляционных таблицах
-    QSqlTableModel::EditStrategy EditStrategy =
-            QSqlTableModel::OnManualSubmit; ///< Стратегия редактирования
-    std::pair<int, Qt::SortOrder> Sorting =
-    {0, Qt::SortOrder::DescendingOrder}; ///< Сортировка
-};
 
 struct TableViewSettings
 {
@@ -29,16 +18,15 @@ struct TableViewSettings
     QHash<QString, QSqlRelation> Relations = {}; ///< Словарь отношений в реляционных таблицах
     QSqlTableModel::EditStrategy EditStrategy =
             QSqlTableModel::OnManualSubmit; ///< Стратегия редактирования
-    std::pair<QString, Qt::SortOrder> Sorting =
-    {"id", Qt::SortOrder::DescendingOrder}; ///< Сортировка
+    std::pair<QString, Qt::SortOrder> Sorting; ///< Сортировка
 };
 
 /**
- * @class ClassifiersTableView
+ * @class SqlTableView
  * Таблица специализированная для отображения и
  * редактирования таблицы базы данных
  */
-class ClassifiersTableView : public QTableView
+class SqlTableView : public QTableView
 {
     Q_OBJECT
 public:
@@ -50,10 +38,6 @@ public:
      * @param база данных
      * @param родительский виджет
     */
-    ClassifiersTableView(
-            const ClassifierSettings& settings,
-            QSqlDatabase db,
-            QWidget* parent);
 
     int selectedRow() const;
 
@@ -124,14 +108,6 @@ public:
     /** @brief вызывается при запросе контекстного меню */
     void contextMenuEvent(QContextMenuEvent* event) override;
 #endif // QT_NO_CONTEXTMENU
-
-    /** @brief Инициализация таблицы
-     * @param settings настройки таблицы
-     * @param база данных
-    */
-    void init(
-            const ClassifierSettings& settings,
-            QSqlDatabase db);
 
     /** @brief Инициализация таблицы
      * @param settings настройки таблицы

@@ -1,6 +1,7 @@
 #include "settings.h"
 
 #include <QVariant>
+#include <QDir>
 #include "application.h"
 
 const QString Settings::LastLoginKey = "auth/lastLogin";
@@ -10,6 +11,7 @@ const QString Settings::DbPortKey = "db/port";
 const QString Settings::DbPassKey = "db/pass";
 const QString Settings::LastCommandsKey = "db/last_commands";
 const QString Settings::DbTypeKey = "db/type";
+const QString Settings::LastSqlFileKey = "sql/type";
 
 
 Settings::Settings()
@@ -89,4 +91,14 @@ void Settings::setDBType(const QString &value)
 auto Settings::dbType() const -> QString
 {
     return value(DbTypeKey, "QPSQL").toString();
+}
+
+void Settings::setLastSqlFile(const QString &value)
+{
+    setValue(LastSqlFileKey, value);
+}
+
+auto Settings::lastSqlFile() const -> QString
+{
+    return value(LastSqlFileKey, QDir::currentPath()).toString();
 }

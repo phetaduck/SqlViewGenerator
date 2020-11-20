@@ -10,6 +10,8 @@
 #include <QSqlResult>
 #include <QSqlError>
 #include <QDesktopWidget>
+#include <QFileDialog>
+#include <QMessageBox>
 
 #include "sqlsharedutils.h"
 #include "application.h"
@@ -39,33 +41,115 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    initFields();
+    connectSignals();
+}
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+
+void MainWindow::saveSqlSlot()
+{
+    auto plainText = ui->pte_Commands->toPlainText();
+    auto filePath = QFileDialog::getSaveFileName(this, "Save SQL as",
+                                                 Application::app()->settings().lastSqlFile(),
+                                                 "*.sql");
+    if (filePath.isEmpty()) return;
+    auto writeSqlLambda = [&filePath, &plainText]() {
+        QFile file{filePath};
+        if (file.open(QIODevice::WriteOnly)) {
+            QTextStream ts{&file};
+            ts << plainText;
+            file.close();
+            Application::app()->settings().setLastSqlFile(filePath);
+        } else {
+            QMessageBox cannotWriteFileWarning;
+            cannotWriteFileWarning.setText("Unable to write file.");
+            cannotWriteFileWarning.exec();
+        }
+    };
+    if (QFileInfo::exists(filePath)) {
+        QMessageBox overwriteDialog;
+        overwriteDialog.setText("File already exists! Do you wish to overwrite it?");
+        connect(&overwriteDialog, &QMessageBox::accepted,
+                this, writeSqlLambda);
+        overwriteDialog.exec();
+    } else {
+        writeSqlLambda();
+    }
+}
+
+void MainWindow::runSqlSlot()
+{
+    auto plainText = ui->pte_Commands->toPlainText();
+    Application::app()->settings().setLastCommands(plainText);
+    auto list = plainText.split(";");
+    dbconn = ThreadingCommon::DBConn::instance()->db();
+    for (const auto& command : list) {
+        if (command.isEmpty()) continue;
+        auto query = dbconn.exec(command);
+        auto lastError = query.lastError().text();
+        if (!lastError.isEmpty()) {
+            ui->pte_Log->appendPlainText(lastError);
+        } else {
+            while (query.next()) {
+                QJsonDocument jsonDoc{fromSqlRecord(query.record())};
+                ui->pte_Log->appendPlainText(jsonDoc.toJson());
+            }
+        }
+    }
+}
+
+void MainWindow::openSqlSlot()
+{
+    auto plainText = ui->pte_Commands->toPlainText();
+    auto filePath = QFileDialog::getOpenFileName(this, "Open SQL file",
+                                                 Application::app()->settings().lastSqlFile(),
+                                                 tr("Sql (*.sql);;Text (*.txt);;Any (*.*)"));
+    if (filePath.isEmpty()) return;
+    QFile file{filePath};
+    if (file.open(QIODevice::ReadOnly)) {
+        ui->pte_Commands->setPlainText(file.readAll());
+        file.close();
+        Application::app()->settings().setLastSqlFile(filePath);
+    } else {
+        QMessageBox cannotWriteFileWarning;
+        cannotWriteFileWarning.setText("Unable to open file.");
+        cannotWriteFileWarning.exec();
+    }
+}
+
+void MainWindow::initFields()
+{
+
     auto settings = Application::app()->settings();
 
     ui->cb_Databases->setSqlRelation(defaultRelation(settings.dbType()));
     ui->cb_Databases->sqlComboBox()->setData(settings.dbName());
 
-    auto highlighter = new SQLSyntaxHighlighter(ui->pte_Commands->document());
+    auto makeHighlighter = [this](auto e) {
+        m_syntaxHighlighters[e] = std::make_shared<SQLSyntaxHighlighter>(e->document());
+    };
 
-    highlighter = new SQLSyntaxHighlighter(ui->te_Output->document());
+    makeHighlighter(ui->pte_Commands);
+    makeHighlighter(ui->te_Output);
 
     ui->pte_Commands->setPlainText(settings.lastCommands());
 
-    connect(ui->tb_RunCommands, &QToolButton::clicked,
-            this, [this]()
-    {
-        auto plainText = ui->pte_Commands->toPlainText();
-        Application::app()->settings().setLastCommands(plainText);
-        auto list = plainText.split(";");
-        dbconn = ThreadingCommon::DBConn::instance()->db();
-        for (const auto& command : list) {
-            auto query = dbconn.exec(command);
-            auto lastError = query.lastError().text();
-            if (!lastError.isEmpty()) {
-                ui->pte_Log->appendPlainText(lastError);
-            }
-        }
+}
 
-    });
+void MainWindow::connectSignals()
+{
+    connect(ui->tb_SaveSql, &QToolButton::clicked,
+            this, &MainWindow::saveSqlSlot);
+
+    connect(ui->tb_RunCommands, &QToolButton::clicked,
+            this, &MainWindow::runSqlSlot);
+
+    connect(ui->tb_OpenSql, &QToolButton::clicked,
+            this, &MainWindow::openSqlSlot);
 
     connect(ui->cb_Databases->sqlComboBox(), &SqlComboBox::currentTextChanged,
             this, [this](const QString& dbName)
@@ -88,19 +172,10 @@ MainWindow::MainWindow(QWidget *parent)
             this, [this](const QModelIndex& current, const QModelIndex&)
     {
         auto table = current.data().toString();
-        auto model = ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(table);
-        if (!model->isSelectedAtLeastOnce()) {
-            model->select();
-        }
-        ui->tv_SelectedTableContents->setModel(model);
+        ui->tv_SelectedTableContents->init({table}, dbconn);
 
         updateSqlScript(table);
     });
-}
-
-MainWindow::~MainWindow()
-{
-    delete ui;
 }
 
 void MainWindow::updateSqlScript(const QString& table)

@@ -1,4 +1,4 @@
-#include "classifierstableview.h"
+#include "sqltableview.h"
 #include <QMenu>
 #include <QKeyEvent>
 #include <QHeaderView>
@@ -9,9 +9,9 @@
 #include <QDateTime>
 
 #include "item_delegates/comboboxitemdelegate.h"
-#include "models/searchablesqltablemodel.h"
+#include "modelmanager.h"
 
-void ClassifiersTableView::createActions()
+void SqlTableView::createActions()
 {
     m_insertAboveAct = new QAction(this);
     m_insertBelowAct = new QAction(this);
@@ -23,60 +23,11 @@ void ClassifiersTableView::createActions()
     m_revertAct->setText("Отменить изменения");
 }
 
-void ClassifiersTableView::init(
-        const ClassifierSettings& settings,
-        QSqlDatabase db)
-{
-    auto model = new SearchableSqlTableModel(nullptr, db);
-    model->setTable(settings.TableName);
-    model->setEditStrategy(settings.EditStrategy);
-    model->setSort(
-                settings.Sorting.first,
-                settings.Sorting.second);
-    setModel(model);
-    for (int column = 0; column < model->columnCount(); ++column) {
-        auto oldDelegate = itemDelegateForColumn(column);
-        if (settings.Relations.count(column)) {
-            auto delegate = new ComboBoxItemDelegate(this);
-            const QString& tableName = settings.Relations[column].tableName();
-            if (!m_comboboxModels.count(tableName)) {
-                auto comboBoxModel = new SearchableSqlTableModel(this, db);
-                comboBoxModel->setTableName(tableName);
-                comboBoxModel->select();
-                m_comboboxModels[tableName] = comboBoxModel;
-            }
-            delegate->setSqlModel(m_comboboxModels[tableName]);
-            delegate->setRelation(settings.Relations[column]);
-            setItemDelegateForColumn(column, delegate);
-        } else {
-            auto delegate = new StyledItemDelegate(this);
-            setItemDelegateForColumn(column, delegate);
-        }
-        if (oldDelegate) {
-            oldDelegate->deleteLater();
-        }
-    }
-    for (auto it = settings.Headers.begin(); it != settings.Headers.end(); it++) {
-        const auto& column = it.key();
-        const auto& header = it.value();
-        model->setHeaderData(column, Qt::Horizontal, header);
-    }
-
-    for (auto hiddenColumn : settings.HiddenColumns) {
-        hideColumn(hiddenColumn);
-    }
-    horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-
-    setTextElideMode(Qt::ElideNone);
-    setWordWrap(true);
-    setAlternatingRowColors(true);
-}
-
-void ClassifiersTableView::init(
+void SqlTableView::init(
         const TableViewSettings& settings,
         QSqlDatabase db)
 {
-    auto model = new SearchableSqlTableModel(nullptr, db);
+    auto model = ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(settings.TableName);
     model->setTable(settings.TableName);
     model->setEditStrategy(settings.EditStrategy);
     model->setSort(
@@ -118,48 +69,34 @@ void ClassifiersTableView::init(
     setAlternatingRowColors(true);
 }
 
-bool ClassifiersTableView::showMenu() const
+bool SqlTableView::showMenu() const
 {
     return m_showMenu;
 }
 
-void ClassifiersTableView::setShowMenu(bool showMenu)
+void SqlTableView::setShowMenu(bool showMenu)
 {
     m_showMenu = showMenu;
 }
 
-ClassifiersTableView::ClassifiersTableView(
-        const ClassifierSettings& settings,
-        QSqlDatabase db,
-        QWidget* parent) :
-    QTableView(parent)
-{
-    init(settings, db);
-}
-
-int ClassifiersTableView::selectedRow() const
+int SqlTableView::selectedRow() const
 {
     return selectionModel()->currentIndex().row();
 }
 
-void ClassifiersTableView::setModel(QAbstractItemModel* model)
+void SqlTableView::setModel(QAbstractItemModel* model)
 {
     QTableView::setModel(model);
 }
 
-void ClassifiersTableView::setModel(SearchableSqlTableModel* model)
+void SqlTableView::setModel(SearchableSqlTableModel* model)
 {
     if (m_sqlModel == model) { return; }
     QTableView::setModel(model);
-    if (m_sqlModel != nullptr) {
-        ///@todo For some reason, m_sqlModel is not null after constructor call
-        /// despite being explicitly marked as nullptr
-        //m_sqlModel->deleteLater();
-        //m_sqlModel = nullptr;
-    }
     m_sqlModel = model;
     if (m_sqlModel) {
-        m_sqlModel->select();
+        if (!m_sqlModel->isSelectedAtLeastOnce())
+            m_sqlModel->select();
         connectContextMenuActions();
         m_sqlModel->setCanEdit(m_canEdit);
         auto columnIndex = m_sqlModel->fieldIndex(m_deletedFieldName);
@@ -169,7 +106,7 @@ void ClassifiersTableView::setModel(SearchableSqlTableModel* model)
     }
 }
 
-void ClassifiersTableView::contextMenuEvent(QContextMenuEvent* event)
+void SqlTableView::contextMenuEvent(QContextMenuEvent* event)
 {
     if (!m_sqlModel || !m_showMenu) return;
 
@@ -238,22 +175,22 @@ void ClassifiersTableView::contextMenuEvent(QContextMenuEvent* event)
     menu.exec(event->globalPos());
 }
 
-QString ClassifiersTableView::deletedFieldName() const
+QString SqlTableView::deletedFieldName() const
 {
     return m_deletedFieldName;
 }
 
-void ClassifiersTableView::setDeletedFieldName(const QString& deletedFieldName)
+void SqlTableView::setDeletedFieldName(const QString& deletedFieldName)
 {
     m_deletedFieldName = deletedFieldName;
 }
 
-bool ClassifiersTableView::canEdit() const
+bool SqlTableView::canEdit() const
 {
     return m_canEdit;
 }
 
-void ClassifiersTableView::setCanEdit(bool canEdit)
+void SqlTableView::setCanEdit(bool canEdit)
 {
     m_canEdit = canEdit;
     if (m_sqlModel) {
@@ -261,42 +198,42 @@ void ClassifiersTableView::setCanEdit(bool canEdit)
     }
 }
 
-bool ClassifiersTableView::canRestore() const
+bool SqlTableView::canRestore() const
 {
     return m_canRestore;
 }
 
-void ClassifiersTableView::setCanRestore(bool canRestore)
+void SqlTableView::setCanRestore(bool canRestore)
 {
     m_canRestore = canRestore;
 }
 
-bool ClassifiersTableView::canInsert() const
+bool SqlTableView::canInsert() const
 {
     return m_canInsert;
 }
 
-void ClassifiersTableView::setCanInsert(bool canInsert)
+void SqlTableView::setCanInsert(bool canInsert)
 {
     m_canInsert = canInsert;
 }
 
-bool ClassifiersTableView::canDelete() const
+bool SqlTableView::canDelete() const
 {
     return m_canDelete;
 }
 
-void ClassifiersTableView::setCanDelete(bool canDelete)
+void SqlTableView::setCanDelete(bool canDelete)
 {
     m_canDelete = canDelete;
 }
 
-SearchableSqlTableModel* ClassifiersTableView::sqlModel() const
+SearchableSqlTableModel* SqlTableView::sqlModel() const
 {
     return m_sqlModel;
 }
 
-void ClassifiersTableView::insertRow(
+void SqlTableView::insertRow(
         int row,
         const QHash<int, QVariant>& defaultValues)
 {
@@ -309,7 +246,7 @@ void ClassifiersTableView::insertRow(
     m_sqlModel->insertRecord(row, newRecord);
 }
 
-void ClassifiersTableView::insertRow(
+void SqlTableView::insertRow(
         int row,
         const QHash<QString, QVariant>& defaultValues)
 {
@@ -323,7 +260,7 @@ void ClassifiersTableView::insertRow(
     }
     insertRow(row, remappedDefaultValues);
 }
-void ClassifiersTableView::deleteRow(int row)
+void SqlTableView::deleteRow(int row)
 {
     if (row > -1) {
         m_sqlModel->removeRow(row);
@@ -332,12 +269,12 @@ void ClassifiersTableView::deleteRow(int row)
     }
 }
 
-void ClassifiersTableView::deleteSelectedRow()
+void SqlTableView::deleteSelectedRow()
 {
     deleteRow(selectedRow());
 }
 
-void ClassifiersTableView::restoreRow(int row)
+void SqlTableView::restoreRow(int row)
 {
     auto model = this->sqlModel();
     auto markedForDeletionFieldIndex = model->fieldIndex(
@@ -355,18 +292,18 @@ void ClassifiersTableView::restoreRow(int row)
     }
 }
 
-void ClassifiersTableView::restoreSelectedRow()
+void SqlTableView::restoreSelectedRow()
 {
     restoreRow(m_lastSelectedRow);
 }
 
-void ClassifiersTableView::submit()
+void SqlTableView::submit()
 {
     if (!this->m_sqlModel->submitAll()) {
     }
 }
 
-void ClassifiersTableView::connectContextMenuActions()
+void SqlTableView::connectContextMenuActions()
 {
     disconnectContextMenuActions();
     createActions();
@@ -383,7 +320,7 @@ void ClassifiersTableView::connectContextMenuActions()
     }
     );
     connect(m_restoreAct, &QAction::triggered,
-            this, &ClassifiersTableView::restoreSelectedRow);
+            this, &SqlTableView::restoreSelectedRow);
 
     connect(m_deleteAct, &QAction::triggered,
             [this] ()
@@ -400,7 +337,7 @@ void ClassifiersTableView::connectContextMenuActions()
             m_sqlModel, &SearchableSqlTableModel::revertAll);
 }
 
-void ClassifiersTableView::disconnectContextMenuActions()
+void SqlTableView::disconnectContextMenuActions()
 {
     if (m_insertBelowAct) {
         m_insertBelowAct->deleteLater();
