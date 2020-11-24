@@ -9,6 +9,9 @@
 #include <QSqlRelation>
 #include <unordered_map>
 #include <QLocalSocket>
+#include <QSqlRecord>
+#include <QJsonObject>
+#include <QJsonValue>
 
 namespace NamedPipes {
 
@@ -68,6 +71,15 @@ inline QString defaultDB (const QString& db_type)
 inline QSqlRelation defaultRelation (const QString& db_type)
 {
     return defaultDBs()[db_type].DefaultRel;
+}
+
+inline QJsonObject fromSqlRecord(const QSqlRecord& record) {
+    QJsonObject out;
+    int fieldsCount = record.count();
+    for (int i = 0; i < fieldsCount; i++) {
+        out.insert(record.fieldName(i), QJsonValue::fromVariant(record.value(i)));
+    }
+    return out;
 }
 
 namespace ThreadingCommon {

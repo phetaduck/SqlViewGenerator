@@ -6,8 +6,8 @@
 #include <QLocalServer>
 #include <QFileSystemWatcher>
 #include <QNetworkAccessManager>
-#include <filepolling.h>
 
+#include <filepolling.h>
 #include <memory>
 #include <unordered_map>
 
@@ -31,6 +31,11 @@ class TableColumnView;
 class SqlTableModel;
 class SQLSyntaxHighlighter;
 class AutoSqlTableModel;
+class QSyntaxHighlighter;
+
+template <typename T, typename K = QObject*>
+using ObjectHash = std::unordered_map<K, std::shared_ptr<T>>;
+
 
 class MainWindow : public QMainWindow
 {
@@ -39,13 +44,17 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-
+	
     QJsonArray jsonFromRecordList(const QList<QSqlRecord>& records);
 
     void highTempMsg(const FaceID& faceId, const SkudID& skudId);
     void keyNumMismatchMsg(const SkudID& skudId);
 
 public slots:
+    void saveSqlSlot();
+    void runSqlSlot();
+    void openSqlSlot();
+	
     void insertRandomFaceId();
     void insertRandomSkudId();
 
@@ -59,10 +68,15 @@ public slots:
     void processFaceID_JSON(const QJsonObject& jsonObject);
     void processSkudID_JSON(const QJsonObject& jsonObject);
 
+protected:
+    virtual void initFields();
+    virtual void connectSignals();
+
 
 private:
     Ui::MainWindow *ui;
     std::unordered_map<QObject*, std::shared_ptr<TableColumnView>> m_columnViews;
+    ObjectHash<QSyntaxHighlighter> m_syntaxHighlighters;
     std::unique_ptr<QLocalSocket> m_pipeConnection = nullptr;
     std::unique_ptr<QLocalServer> m_localServer = nullptr;
     SqlTableModel* m_relationModel = nullptr;
@@ -76,8 +90,6 @@ private:
     FilePolling* m_fsWatcher = nullptr;
 
     QSqlDatabase dbconn;
-
-    SQLSyntaxHighlighter* m_highlighter = nullptr;
 
     void send(const QList<Event> &eventList);
 };

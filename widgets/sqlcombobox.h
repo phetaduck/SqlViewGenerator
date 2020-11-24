@@ -49,6 +49,9 @@ public:
      */
     void setSelectedIndex(const QVariant& data);
 
+    void setCurrentIndex(int index);
+    void setCurrentText(const QString &text);
+
     /** @brief SQL Модель данных
      * @return SQL модель в возможностью поиска, может быть nullptr
      */
@@ -76,4 +79,8 @@ protected:
 
     QSqlRelation m_sqlRelation; ///< отношение в реляционной таблице
     SqlTableModel* m_sqlModel = nullptr; ///< SQL модель в возможностью поиска
+
+    int m_lastSelectedIndex = -1;
+    QString m_lastSelectedItem = {};
+    QVariant m_lastSelectedData = {};
 };

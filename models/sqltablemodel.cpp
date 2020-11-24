@@ -472,8 +472,9 @@ bool SqlTableModel::performUpdate()
     {
         request = "UPDATE " + m_tableName + " SET  ";
         for (const auto& field : m_fieldNames) {
-            if (field != m_primaryKey)
+            if (m_defaultRecord.isGenerated(field)) {
                 request += field + " = " + "?,";
+            }
         }
 
         request.remove(request.size() - 1, 1);
@@ -584,8 +585,9 @@ bool SqlTableModel::performInsert()
         if (row->status == RowStatus::Inserted) {
             ok = true;
             for (const auto& field : m_fieldNames) {
-                if (field != m_primaryKey)
+                if (m_defaultRecord.isGenerated(field)) {
                     varLists[field] << row->rowData.value(field);
+                }
             }
         }
     }
@@ -641,8 +643,9 @@ QString SqlTableModel::generateUpdateRequest(bool& ok) const
     QString out;
     out = "UPDATE " + m_tableName + " AS O SET ";
     for (const auto& field : m_fieldNames) {
-        if (field != m_primaryKey)
+        if (m_defaultRecord.isGenerated(field)) {
             out += field + " = N." + field + ",";
+        }
     }
     out.remove(out.size() - 1, 1);
     out += " FROM ( VALUES ";

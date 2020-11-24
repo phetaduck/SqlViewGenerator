@@ -59,7 +59,23 @@ void SqlComboBox::setSelectedIndex(const QVariant& data)
     }
 }
 
-SqlTableModel* SqlComboBox::sqlModel()
+void SqlComboBox::setCurrentIndex(int index)
+{
+    m_lastSelectedIndex = index;
+    m_lastSelectedItem = QString{};
+    m_lastSelectedData = {selectedIndex().data().type()};
+    QComboBox::setCurrentIndex(index);
+}
+
+void SqlComboBox::setCurrentText(const QString& text)
+{
+    m_lastSelectedIndex = -1;
+    m_lastSelectedItem = text;
+    m_lastSelectedData = {selectedIndex().data().type()};
+    QComboBox::setCurrentText(text);
+}
+
+SearchableSqlTableModel* SqlComboBox::sqlModel()
 {
     return m_sqlModel;
 }

@@ -40,6 +40,8 @@ public:
 
     void setMaxTemp(double value);
     auto maxTemp() const -> double;
+    void setLastSqlFile(const QString& value);
+    auto lastSqlFile() const -> QString;
 
 private:
     static const QString LastLoginKey;
@@ -56,4 +58,5 @@ private:
     static const QString LastRemoteAPINameKey;
     static const QString WatchFileNameKey;
     static const QString MaxTempNameKey;
+    static const QString LastSqlFileKey;
 };

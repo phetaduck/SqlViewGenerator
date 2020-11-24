@@ -1,6 +1,7 @@
 #include "settings.h"
 
 #include <QVariant>
+#include <QDir>
 #include "application.h"
 
 const QString Settings::LastLoginKey = "auth/lastLogin";
@@ -20,6 +21,7 @@ const QString Settings::LastRemoteAPINameKey = "remote/api";
 const QString Settings::WatchFileNameKey = "skud/watchFile";
 
 const QString Settings::MaxTempNameKey = "faceid/maxTemp";
+const QString Settings::LastSqlFileKey = "sql/type";
 
 
 Settings::Settings()
@@ -100,7 +102,6 @@ auto Settings::dbType() const -> QString
 {
     return value(DbTypeKey, "QPSQL").toString();
 }
-
 void Settings::setPipeName(const QString &value)
 {
     setValue(PipeNameKey, value);
@@ -174,5 +175,12 @@ auto Settings::maxTemp() const -> double
     return value(MaxTempNameKey,
                  37.0).toDouble();
 }
+void Settings::setLastSqlFile(const QString &value)
+{
+    setValue(LastSqlFileKey, value);
+}
 
-
+auto Settings::lastSqlFile() const -> QString
+{
+    return value(LastSqlFileKey, QDir::currentPath()).toString();
+}
