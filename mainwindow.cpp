@@ -181,7 +181,6 @@ void MainWindow::initFields()
     };
 
     makeHighlighter(ui->pte_Commands);
-    makeHighlighter(ui->te_Output);
 
     ui->pte_Commands->setPlainText(settings.lastCommands());
     ui->le_pipeName->setText(settings.pipeName());
@@ -201,7 +200,7 @@ void MainWindow::connectSignals()
     connect(ui->tb_SaveSql, &QToolButton::clicked,
             this, &MainWindow::saveSqlSlot);
 
-    connect(ui->tb_RunCommands, &QToolButton::clicked,
+    connect(ui->tb_RunSql, &QToolButton::clicked,
             this, &MainWindow::runSqlSlot);
 
     connect(ui->tb_OpenSql, &QToolButton::clicked,
@@ -343,11 +342,6 @@ void MainWindow::connectSignals()
     });
 }
 
-MainWindow::~MainWindow()
-{
-    delete ui;
-}
-
 void MainWindow::highTempMsg(const FaceID& faceId, const SkudID& skudId)
 {
     auto empName = skudId.name;
@@ -398,7 +392,6 @@ void MainWindow::keyNumMismatchMsg(const SkudID& skudId)
                        + ") прошел по чужому пропуску ("
                        + empName
                        + ")";
-        m_faceIdCache.cache().erase(closestIt);
     } else {
         event.reason = "Неопознанные лица прошли по пропуску сотрудника ("
                        + empName
@@ -717,6 +710,14 @@ void MainWindow::processSkudID_JSON(const QJsonObject& jsonObject)
                     /// @note match found. high temp
                 } else {
                     keyNumMismatchMsg(newSkudID);
+                }
+                auto closestIt = m_faceIdCache.findClosestByTime(newSkudID.eventDateTime);
+                if (closestIt != m_faceIdCache.cache().end()) {
+                    auto foundFaceID = *closestIt;
+                    if (foundFaceID.temp > ui->dsb_MaxTemp->value()) {
+                        highTempMsg(foundFaceID, newSkudID);
+                    }
+                    m_faceIdCache.cache().erase(closestIt);
                 }
             });
         }

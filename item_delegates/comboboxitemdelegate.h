@@ -1,7 +1,7 @@
 #pragma once
 
 #include "styleditemdelegate.h"
-#include "models/searchablesqltablemodel.h"
+#include "models/sqltablemodel.h"
 #include <QSqlRelation>
 
 /**
@@ -47,14 +47,14 @@ public:
     /** перегруженный метод базового класса */
     QSqlDatabase getDb() const;
 
-    SearchableSqlTableModel* getSqlModel() const;
-    void setSqlModel(SearchableSqlTableModel* sqlModel);
+    SqlTableModel* getSqlModel() const;
+    void setSqlModel(SqlTableModel* sqlModel);
 
 protected:
 
     std::function<void(QWidget* editor)> m_commitLambda;
 
-    SearchableSqlTableModel* m_sqlModel = nullptr; ///< SQL модель для комбобокса
+    SqlTableModel* m_sqlModel = nullptr; ///< SQL модель для комбобокса
     QSqlDatabase m_db; ///< база данных
     QSqlRelation m_relation; ///< SQL отношение
 };

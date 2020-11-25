@@ -3,9 +3,9 @@
 
 #include <QStyledItemDelegate>
 
-class SearchableSqlTableModel;
+class SqlTableModel;
 
-using RelationModel = SearchableSqlTableModel;
+using RelationModel = SqlTableModel;
 
 /**
  * @class RelationalItemDelegate

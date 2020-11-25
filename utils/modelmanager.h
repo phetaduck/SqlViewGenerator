@@ -45,7 +45,7 @@ namespace ModelManager
     };
     /** Создает новую модель и добавляет ее в пул если еще не создана,
      * возвращает уже существующуюю в противном случае.
-     * Если класс Т наследник SearchableSqlTableModel - все в порядке.
+     * Если класс Т наследник SqlTableModel - все в порядке.
      * В противном случае возвращаемый тип не отпределен. */
     template<typename T>
     extern typename std::enable_if_t<std::is_base_of_v<SqlTableModel, T>, T*> /** */

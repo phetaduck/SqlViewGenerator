@@ -89,7 +89,7 @@ void SqlTableView::setModel(QAbstractItemModel* model)
     QTableView::setModel(model);
 }
 
-void SqlTableView::setModel(SearchableSqlTableModel* model)
+void SqlTableView::setModel(SqlTableModel* model)
 {
     if (m_sqlModel == model) { return; }
     QTableView::setModel(model);
@@ -228,7 +228,7 @@ void SqlTableView::setCanDelete(bool canDelete)
     m_canDelete = canDelete;
 }
 
-SearchableSqlTableModel* SqlTableView::sqlModel() const
+SqlTableModel* SqlTableView::sqlModel() const
 {
     return m_sqlModel;
 }
@@ -334,7 +334,7 @@ void SqlTableView::connectContextMenuActions()
         submit();
     });
     connect(m_revertAct, &QAction::triggered,
-            m_sqlModel, &SearchableSqlTableModel::revertAll);
+            m_sqlModel, &SqlTableModel::revertAll);
 }
 
 void SqlTableView::disconnectContextMenuActions()

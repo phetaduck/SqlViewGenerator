@@ -73,7 +73,7 @@ void ComboBoxItemDelegate::setRelation(QSqlRelation relation)
     };
     if (!m_sqlModel)
     {
-        m_sqlModel = new SearchableSqlTableModel(this, m_db);
+        m_sqlModel = new SqlTableModel(this, m_db);
         m_sqlModel->setTable(m_relation.tableName());
         m_sqlModel->select();
     }
@@ -84,12 +84,12 @@ QSqlDatabase ComboBoxItemDelegate::getDb() const
     return m_db;
 }
 
-SearchableSqlTableModel* ComboBoxItemDelegate::getSqlModel() const
+SqlTableModel* ComboBoxItemDelegate::getSqlModel() const
 {
     return m_sqlModel;
 }
 
-void ComboBoxItemDelegate::setSqlModel(SearchableSqlTableModel* sqlModel)
+void ComboBoxItemDelegate::setSqlModel(SqlTableModel* sqlModel)
 {
     m_sqlModel = sqlModel;
 }

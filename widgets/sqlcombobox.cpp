@@ -75,7 +75,7 @@ void SqlComboBox::setCurrentText(const QString& text)
     QComboBox::setCurrentText(text);
 }
 
-SearchableSqlTableModel* SqlComboBox::sqlModel()
+SqlTableModel* SqlComboBox::sqlModel()
 {
     return m_sqlModel;
 }

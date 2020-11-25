@@ -5,7 +5,7 @@
 class QDateTimeEdit;
 
 /**
- * @class SearchableSqlTableModel
+ * @class SqlTableModel
  * модель с возможностью поиска
  */
 class DateTimeItemDelegate : public StyledItemDelegate

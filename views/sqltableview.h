@@ -4,7 +4,7 @@
 
 #include <QSqlRelation>
 
-class SearchableSqlTableModel;
+class SqlTableModel;
 
 /**
  * @struct Структура настроек таблицы
@@ -49,7 +49,7 @@ public:
     /** @brief перегруженый метод базового класса
      * @param model модель данных
     */
-    virtual void setModel(SearchableSqlTableModel* model);
+    virtual void setModel(SqlTableModel* model);
 
     /** @brief вставить строку в таблицу
      * @param row номер строки
@@ -77,7 +77,7 @@ public:
     /** @brief SQL модель
      * @return текущую модель, может быть nullptr
     */
-    SearchableSqlTableModel* sqlModel() const;
+    SqlTableModel* sqlModel() const;
 
     /** @brief getter возможность удаления */
     bool canDelete() const;
@@ -154,9 +154,9 @@ private:
 
     int m_lastSelectedRow = -1; ///< Последняя выделенная строка
 
-    QMap<QString, SearchableSqlTableModel*> m_comboboxModels; ///< Кэш моделей делегатов
+    QMap<QString, SqlTableModel*> m_comboboxModels; ///< Кэш моделей делегатов
 
-    SearchableSqlTableModel* m_sqlModel = nullptr; ///< SQL модель
+    SqlTableModel* m_sqlModel = nullptr; ///< SQL модель
 
     bool m_canDelete = true; ///< Флаг возможности удаления
     bool m_canInsert = true; ///< Флаг возможности вставки

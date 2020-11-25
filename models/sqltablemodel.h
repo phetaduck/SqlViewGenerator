@@ -10,7 +10,7 @@
 using ParentModelClass = QAbstractTableModel;
 
 /**
- * @class SearchableSqlTableModel
+ * @class SqlTableModel
  * модель Sql таблицы с возможностью поиска.
  * Можно использовать и без работы с БД.
  * Достаточно передать кусок другой модели и указать названия полей.
