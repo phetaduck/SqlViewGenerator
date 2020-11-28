@@ -43,11 +43,16 @@ struct TableViewSettings
     {"id", Qt::SortOrder::AscendingOrder}; ///< Сортировка
 };
 
+using ClassifiersListType = std::vector<std::pair<QString, ClassifierSettings>>;
+
 static std::vector<std::pair<QString, ClassifierSettings>> KnownClassifiers;
 
 auto LoadClassifiers (const QString& filePath) -> decltype (KnownClassifiers)&;
 
 void SaveClassifiers (const QString& filePath);
+
+void SaveClassifiers(const ClassifiersListType& classifiers,
+                     const QString& filePath);
 
 auto GetClassifiers () -> decltype (KnownClassifiers)&;
 

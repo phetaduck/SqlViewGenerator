@@ -2,6 +2,8 @@
 
 #include <QWidget>
 
+#include "classifier_definitions.h"
+
 namespace Ui {
 class UpdateViews;
 }
@@ -22,5 +24,6 @@ public slots:
 
 private:
     Ui::UpdateViews *ui;
+    Classifiers::ClassifiersListType newClassifierList;
 };
 

@@ -50,6 +50,11 @@ QString SqlViewGenerator::viewSql(const SqlSettings& settings)
                   "\t" << "OWNER TO " << settings.owner << ";\n\n";
     }
 
+    out_ts << "GRANT SELECT ON TABLE " << viewName << " TO project_admin;\n";
+    out_ts << "GRANT ALL ON TABLE " << viewName << " TO admin;\n";
+    out_ts << "GRANT SELECT, DELETE ON TABLE " << viewName << " TO db_delete;\n";
+    out_ts << "GRANT INSERT, SELECT, UPDATE ON TABLE " << viewName << " TO catalog_admin;\n\n";
+
     return out;
 }
 

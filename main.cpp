@@ -3,6 +3,7 @@
 #include "application.h"
 #include <QMessageBox>
 #include <QSqlError>
+#include <QFile>
 
 enum Authorized {
     OK,
@@ -51,7 +52,12 @@ Authorized authorization()
 int main(int argc, char *argv[])
 {
     Application a(argc, argv);
-    a.setStyleSheet(":/res/material-blue.qss");
+    QFile file(":/res/WhiteStyle.qss");
+    if(file.open(QFile::ReadOnly | QFile::Text)) {
+        QTextStream ts(&file);
+        a.setStyleSheet(ts.readAll());
+        file.close();
+    }
     int result = 0;
     bool restart;
     do {

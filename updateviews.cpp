@@ -5,6 +5,7 @@
 #include <QLabel>
 
 #include "utils/classifier_definitions.h"
+#include "sqlsyntaxhighlighter.h"
 
 UpdateViews::UpdateViews(QWidget *parent) :
     QWidget(parent),
@@ -12,6 +13,7 @@ UpdateViews::UpdateViews(QWidget *parent) :
 {
     ui->setupUi(this);
     connectSignals();
+    new SQLSyntaxHighlighter(ui->pte_Sql->document());
 }
 
 UpdateViews::~UpdateViews()
@@ -51,7 +53,7 @@ void UpdateViews::saveJsonSlot()
                         "Save classifier list",
                         settings.getClassifiersPath(),
                         "JSON *.json");
-    Classifiers::SaveClassifiers(filename);
+    Classifiers::SaveClassifiers(newClassifierList, filename);
 }
 
 void UpdateViews::openCsvSlot()
@@ -64,8 +66,8 @@ void UpdateViews::openCsvSlot()
                         "CSV *.CSV");
     settings.setValue("file/csv", filename);
     QFile file {filename};
-    decltype (Classifiers::KnownClassifiers) newClassifierList;
-    const auto& classifiers = Classifiers::GetClassifiers();
+    newClassifierList.clear();
+    auto classifiers = Classifiers::GetClassifiers();
     newClassifierList.reserve(classifiers.size());
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream ts{&file};
@@ -79,10 +81,57 @@ void UpdateViews::openCsvSlot()
 
             if (it != classifiers.end()) {
                 newClassifierList.push_back(*it);
+                classifiers.erase(it);
             }
         }
         file.close();
+        ui->pte_missing->clear();
+        for (const auto& value : classifiers) {
+            ui->pte_missing->appendPlainText(value.first);
+            newClassifierList.push_back(value);
+        }
         ui->gb_new->setClassifierList(newClassifierList);
+        ui->pte_CList->clear();
+        QString text;
+        QTextStream tts{&text};
+        for (const auto& classifier: newClassifierList) {
+            auto record = ThreadingCommon::DBConn::instance()->db("passport_show").record(classifier.second.TableName);
+            if (record.contains("deleted_at")) {
+                ui->pte_CList->appendPlainText(classifier.second.TableName);
+                SqlSettings sqlSettings;
+                sqlSettings.table = classifier.second.TableName;
+                sqlSettings.table.remove("catalogs.");
+                sqlSettings.tableSchema = "public";
+                sqlSettings.viewSchema = "catalogs";
+                sqlSettings.primaryKey = "id";
+                sqlSettings.fieldOrder.clear();
+                sqlSettings.fieldOrder.push_back(sqlSettings.primaryKey);
+                sqlSettings.record = record;
+
+                for (int i = 0; i < sqlSettings.record.count(); i++) {
+                    auto field = sqlSettings.record.field(i);
+                    if (field.name() != sqlSettings.primaryKey) {
+                        sqlSettings.fieldOrder.push_back(field.name());
+                    }
+                }
+                sqlSettings.sortColumn = "order_index";
+                sqlSettings.sortEnabled = true;
+                sqlSettings.dropFunctions = true;
+                sqlSettings.dropView = false;
+                sqlSettings.owner = "admin";
+
+                tts << SqlViewGenerator::viewSql(sqlSettings);
+                tts << SqlViewGenerator::insetFunctionSql(sqlSettings);
+                tts << SqlViewGenerator::updateFunctionSql(sqlSettings);
+                tts << SqlViewGenerator::deleteFunctionSql(sqlSettings);
+                tts << SqlViewGenerator::insetTriggerSql(sqlSettings);
+                tts << SqlViewGenerator::updateTriggerSql(sqlSettings);
+                tts << SqlViewGenerator::deleteTriggerSql(sqlSettings);
+            }
+        }
+
+        ui->pte_Sql->clear();
+        ui->pte_Sql->appendPlainText(text);
     }
 
 }

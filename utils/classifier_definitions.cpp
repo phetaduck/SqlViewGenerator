@@ -32,6 +32,21 @@ void Classifiers::SaveClassifiers(const QString& filePath)
     }
 }
 
+void Classifiers::SaveClassifiers(const ClassifiersListType& classifiers,
+                                  const QString& filePath)
+{
+    /// @note temporary
+    QJsonDocument doc;
+    doc.setArray(JSON::toJsonValue(classifiers).toArray());
+    auto settings = Application::app()->settings();
+    QFile file{filePath};
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream ts{&file};
+        ts << QString::fromLocal8Bit(doc.toJson());
+        file.close();
+    }
+}
+
 auto Classifiers::GetClassifiers() -> decltype (Classifiers::KnownClassifiers)&
 {
     if (Classifiers::KnownClassifiers.empty()) {
