@@ -14,6 +14,14 @@
 struct DBTypeDesc {
     QString DefaultDB;
     QSqlRelation DefaultRel;
+    QString InfoTable;
+    QString InfoDB;
+    QString InfoSchemaName;
+    QString InfoTableName;
+    QString InfoTableType;
+    QString SchemaTable;
+    QString SchemaDB;
+    QString SchemaTableNameColumn;
 };
 
 inline QHash<QString, DBTypeDesc>& defaultDBs ()
@@ -24,7 +32,15 @@ inline QHash<QString, DBTypeDesc>& defaultDBs ()
                 "postgres",
                 {
                     "pg_database", "datname", "datname"
-                }
+                },
+                "information_schema.tables",
+                "table_catalog",
+                "table_schema",
+                "table_name",
+                "table_type",
+                "information_schema.schemata",
+                "catalog_name",
+                "schema_name",
             }
         },
         {"QMYSQL",
@@ -32,7 +48,15 @@ inline QHash<QString, DBTypeDesc>& defaultDBs ()
                 "information_schema",
                 {
                     "schemata", "schema_name", "schema_name"
-                }
+                },
+                "information_schema.tables",
+                "table_catalog",
+                "table_schema",
+                "table_name",
+                "table_type",
+                "information_schema.schemata",
+                "catalog_name",
+                "schema_name",
             }
         }
     };
@@ -101,7 +125,7 @@ template<typename T, typename Key, typename... Args>
 static auto sharedObject(const Key& key, Args&&... args) {
     static QHash<Key, std::shared_ptr<T>> ObjectsCache {};
     if (!ObjectsCache.contains(key)) {
-        ObjectsCache[key] = std::make_shared<T>(std::forward<Args...>(args...));
+        ObjectsCache[key] = std::make_shared<T>(std::forward<Args>(args)...);
     }
     return ObjectsCache[key].get();
 }

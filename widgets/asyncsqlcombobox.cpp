@@ -40,7 +40,7 @@ AsyncSqlComboBox::AsyncSqlComboBox(QWidget* parent) :
         m_clearButton->hide();
     }
     if (!m_showReloadButton) {
-        m_clearButton->hide();
+        m_reloadButton->hide();
     }
     m_waitLabel->hide();
 
@@ -48,6 +48,7 @@ AsyncSqlComboBox::AsyncSqlComboBox(QWidget* parent) :
             this, [this]()
     {
         m_sqlComboBox->setCurrentIndex(-1);
+        setData({});
     });
 
 }
@@ -77,12 +78,8 @@ auto AsyncSqlComboBox::reloadButton() const -> QToolButton*
     return m_reloadButton.get();
 }
 
-auto AsyncSqlComboBox::sqlRelation() const -> const QSqlRelation& {
-    return sqlComboBox()->sqlRelation();
-}
-
-void AsyncSqlComboBox::setSqlRelation(const QSqlRelation& relation) {
-    auto model = ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(relation.tableName());
+void AsyncSqlComboBox::setSqlModel(AsyncSqlTableModel* model)
+{
     connect(model, &AsyncSqlTableModel::selectStarted,
             this, &AsyncSqlComboBox::onSyncStarted);
     connect(model, &AsyncSqlTableModel::selectFinished,
@@ -91,15 +88,33 @@ void AsyncSqlComboBox::setSqlRelation(const QSqlRelation& relation) {
             this, &AsyncSqlComboBox::onSyncStarted);
     connect(model, &AsyncSqlTableModel::submitAllFinished,
             this, &AsyncSqlComboBox::onSyncFinished);
-    m_sqlComboBox->setSqlData(model, relation);
-    if (!model->isSelectedAtLeastOnce()) {
-        model->select();
+    m_sqlComboBox->setSqlModel(model);
+}
+
+auto AsyncSqlComboBox::sqlRelation() const -> const QSqlRelation& {
+    return sqlComboBox()->sqlRelation();
+}
+
+void AsyncSqlComboBox::setSqlRelation(const QSqlRelation& relation) {
+    if (!m_sqlComboBox->sqlModel()) {
+        auto model = ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(relation.tableName());
+        m_sqlComboBox->setSqlData(model, relation);
+        if (!model->isSelectedAtLeastOnce()) {
+            model->select();
+        }
+    } else {
+        m_sqlComboBox->setSqlRelation(relation);
     }
 }
 
 bool AsyncSqlComboBox::showClearButton() const
 {
     return m_showClearButton;
+}
+
+bool AsyncSqlComboBox::showReloadButton() const
+{
+    return m_showReloadButton;
 }
 
 void AsyncSqlComboBox::setShowClearButton(bool showClearButton)
@@ -112,12 +127,31 @@ void AsyncSqlComboBox::setShowClearButton(bool showClearButton)
     }
 }
 
+void AsyncSqlComboBox::setShowReloadButton(bool showReloadButton)
+{
+    m_showReloadButton = showReloadButton;
+    if (m_showReloadButton) {
+        m_reloadButton->show();
+    } else {
+        m_reloadButton->hide();
+    }
+}
+
+void AsyncSqlComboBox::setData(const QVariant& data) {
+    m_selectedData = data;
+    m_sqlComboBox->setData(data);
+}
+
 void AsyncSqlComboBox::onSyncFinished()
 {
     m_waitLabel->movie()->stop();
     m_sqlComboBox->show();
+    m_sqlComboBox->setData(m_selectedData);
     if (m_showClearButton) {
         m_clearButton->show();
+    }
+    if (m_showReloadButton) {
+        m_reloadButton->show();
     }
     m_waitLabel->hide();
 }
@@ -126,6 +160,7 @@ void AsyncSqlComboBox::onSyncStarted()
 {
     m_sqlComboBox->hide();
     m_clearButton->hide();
+    m_reloadButton->hide();
     m_waitLabel->show();
     m_waitLabel->movie()->start();
 }

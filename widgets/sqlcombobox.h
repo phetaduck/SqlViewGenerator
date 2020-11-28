@@ -4,7 +4,7 @@
 #include <QSqlRelation>
 #include "utils/modelmanager.h"
 
-class SearchableSqlTableModel;
+class SqlTableModel;
 
 /**
  * @class SqlComboBox
@@ -55,19 +55,21 @@ public:
     /** @brief SQL Модель данных
      * @return SQL модель в возможностью поиска, может быть nullptr
      */
-    virtual SearchableSqlTableModel* sqlModel();
+    virtual SqlTableModel* sqlModel();
 
     /** @brief getter отношения */
     virtual auto sqlRelation() const -> const QSqlRelation&;
 
     /** @brief setter отношения и модели */
-    virtual void setSqlData(SearchableSqlTableModel* sqlModel,
+    virtual void setSqlData(SqlTableModel* sqlModel,
                     const QSqlRelation& sqlRelation);
 
     /** @brief getter Выбранный элемент */
     virtual QVariant data();
     /** @brief setter Выбранный элемент */
     virtual void setData(const QVariant& data);
+
+    void setSqlModel(SqlTableModel* sqlModel);
 
 public slots:
     void setSqlRelation(const QSqlRelation& sqlRelation);
@@ -78,7 +80,7 @@ signals:
 protected:
 
     QSqlRelation m_sqlRelation; ///< отношение в реляционной таблице
-    SearchableSqlTableModel* m_sqlModel = nullptr; ///< SQL модель в возможностью поиска
+    SqlTableModel* m_sqlModel = nullptr; ///< SQL модель в возможностью поиска
 
     int m_lastSelectedIndex = -1;
     QString m_lastSelectedItem = {};

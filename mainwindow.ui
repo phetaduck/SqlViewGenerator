@@ -15,7 +15,7 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="1" column="0" rowspan="3">
+    <item row="2" column="0" rowspan="5">
      <widget class="QGroupBox" name="groupBox">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -87,15 +87,8 @@
       </layout>
      </widget>
     </item>
-    <item row="3" column="1">
-     <widget class="SqlTableView" name="tv_SelectedTableContents">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
+    <item row="0" column="1" rowspan="4">
+     <widget class="QListView" name="lv_Tables"/>
     </item>
     <item row="0" column="0">
      <widget class="QGroupBox" name="groupBox_2">
@@ -116,13 +109,13 @@
         <number>0</number>
        </property>
        <property name="topMargin">
-        <number>0</number>
+        <number>9</number>
        </property>
        <property name="rightMargin">
         <number>0</number>
        </property>
        <property name="bottomMargin">
-        <number>0</number>
+        <number>9</number>
        </property>
        <item>
         <widget class="AsyncSqlComboBox" name="cb_Databases">
@@ -137,8 +130,8 @@
       </layout>
      </widget>
     </item>
-    <item row="0" column="2" rowspan="4">
-     <widget class="QTextEdit" name="te_Output">
+    <item row="6" column="1">
+     <widget class="SqlTableView" name="tv_SelectedTableContents">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -147,20 +140,35 @@
       </property>
      </widget>
     </item>
-    <item row="0" column="1" rowspan="3">
-     <widget class="QListWidget" name="listWidget">
+    <item row="4" column="1">
+     <widget class="ViewSettings" name="viewSettings" native="true"/>
+    </item>
+    <item row="0" column="2" rowspan="7">
+     <widget class="QTextEdit" name="te_Output">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
-      <property name="alternatingRowColors">
-       <bool>true</bool>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QGroupBox" name="gb_Schema">
+      <property name="title">
+       <string>Schema</string>
       </property>
-      <property name="uniformItemSizes">
-       <bool>true</bool>
-      </property>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="AsyncSqlComboBox" name="cb_TableSchema"/>
+       </item>
+      </layout>
      </widget>
     </item>
    </layout>
@@ -179,6 +187,7 @@
      <string>Tools</string>
     </property>
     <addaction name="actionView_Editor"/>
+    <addaction name="actionUpdate_Views"/>
    </widget>
    <addaction name="menuTools"/>
   </widget>
@@ -186,6 +195,11 @@
   <action name="actionView_Editor">
    <property name="text">
     <string>View Editor</string>
+   </property>
+  </action>
+  <action name="actionUpdate_Views">
+   <property name="text">
+    <string>Update Views</string>
    </property>
   </action>
  </widget>
@@ -199,6 +213,12 @@
    <class>SqlTableView</class>
    <extends>QTableView</extends>
    <header location="global">views/sqltableview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ViewSettings</class>
+   <extends>QWidget</extends>
+   <header location="global">viewsettings.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources>

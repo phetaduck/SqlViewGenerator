@@ -50,7 +50,8 @@ Authorized authorization()
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    Application a(argc, argv);
+    a.setStyleSheet(":/res/material-blue.qss");
     int result = 0;
     bool restart;
     do {

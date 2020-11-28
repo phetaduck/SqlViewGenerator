@@ -19,7 +19,8 @@ void SQLSyntaxHighlighter::highlightBlock(const QString& text)
                            "begin|end|return|set|new|old|returns|language|cost|or|create|replace|view|table|"
                            "public|declare|values|record|exception|raise|alter|function|to|owner|execute|"
                            "procedure|trigger|for|row|each|drop|if|elsif|instead|of|returning|database|user|"
-                           "join|on|using|union|exists|in|as|intersect|except|coalesce|insert|delete|into|update)\\b",
+                           "join|on|using|union|exists|in|as|intersect|except|coalesce|insert|delete|into|update|"
+                           "comment|asc|desc|volatile|leakproof|security|definer)\\b",
                            Qt::CaseInsensitive);
 
     pos = 0;

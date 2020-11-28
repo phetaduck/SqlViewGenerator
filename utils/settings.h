@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QSettings>
+#include "sqlviewgenerator.h"
 
 class Settings : public QSettings
 {
@@ -25,6 +26,26 @@ public:
     auto dbType() const -> QString;
     void setLastSqlFile(const QString& value);
     auto lastSqlFile() const -> QString;
+    void setTableSettings(const QString& key, const SqlSettings& value);
+    auto tableSettings(const QString& key) const -> SqlSettings;
+    void setDefaultTableSettings(const SqlSettings& value);
+    auto defaultTableSettings() const -> SqlSettings;
+//    auto lastDatabase() -> QString;
+//    void setLastDatabase(const QString& value);
+//    auto lastSchema() -> QString;
+//    void setLastSchema(const QString& value);
+
+    /**
+     * @brief метод установки пути к классификаторам
+     * @param путь к классификаторам
+     */
+    void setClassifiersPath(const QString value);
+
+    /**
+     * @brief метод получения пути к классификаторам
+     * @return путь к классификаторам
+     */
+    QString getClassifiersPath() const;
 
 private:
     static const QString LastLoginKey;
@@ -35,4 +56,7 @@ private:
     static const QString LastCommandsKey;
     static const QString DbTypeKey;
     static const QString LastSqlFileKey;
+    static const QString TableSettingsKey;
+    static const QString DefaultTableSettingsKey;
+    static const QString ClassifiersPathKey;
 };

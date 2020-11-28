@@ -27,7 +27,7 @@ public:
     /** @note Перегруженные метод базового класса */
     void setModelColumn(int visibleColumn);
     /** @note Перегруженные метод базового класса */
-    void setSqlData(SearchableSqlTableModel* model,
+    void setSqlData(SqlTableModel* model,
                     const QSqlRelation& sqlRelation) override;
     /** @note Перегруженные метод базового класса */
     QModelIndex selectedIndex() const override;

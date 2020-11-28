@@ -1,6 +1,6 @@
 #include "relationalitemdelegate.h"
 
-#include "models/searchablesqltablemodel.h"
+#include "models/sqltablemodel.h"
 
 RelationalItemDelegate::RelationalItemDelegate(QObject *parent) :
     QStyledItemDelegate(parent),

@@ -12,6 +12,9 @@ const QString Settings::DbPassKey = "db/pass";
 const QString Settings::LastCommandsKey = "db/last_commands";
 const QString Settings::DbTypeKey = "db/type";
 const QString Settings::LastSqlFileKey = "sql/type";
+const QString Settings::TableSettingsKey = "sql/table_settings_";
+const QString Settings::DefaultTableSettingsKey = "sql/default_table_settings";
+const QString Settings::ClassifiersPathKey = "files/classifiers";
 
 
 Settings::Settings()
@@ -45,6 +48,8 @@ QString Settings::dbHostName() const
 
 void Settings::setDbName(const QString &dbName)
 {
+    if (dbName == "postgres")
+        qDebug() << "set " << dbName;
     setValue(DbNameKey, dbName);
 }
 
@@ -101,4 +106,54 @@ void Settings::setLastSqlFile(const QString &value)
 auto Settings::lastSqlFile() const -> QString
 {
     return value(LastSqlFileKey, QDir::currentPath()).toString();
+}
+
+void Settings::setDefaultTableSettings(const SqlSettings& value)
+{
+    setValue(DefaultTableSettingsKey, value.toMap());
+}
+
+auto Settings::defaultTableSettings() const -> SqlSettings
+{
+    auto map = value(DefaultTableSettingsKey,
+                     QVariantMap{
+                         {"primaryKey", {QStringLiteral("id")}},
+                         {"sortColumn", {QStringLiteral("order_index")}},
+                         {"viewSchema", {QStringLiteral("catalogs")}},
+                         {"sortOrder", {QStringLiteral("ASC")}},
+                         {"comment", {}},
+                         {"fieldOrder", {}},
+                         {"owner", "admin"},
+                         {"dropView", {false}},
+                         {"dropFunctions", {true}},
+                         {"sortEnabled", {true}},
+                     }).toMap();
+    return SqlSettings::fromMap(map);
+}
+
+void Settings::setTableSettings(const QString& key, const SqlSettings& value)
+{
+    setValue(TableSettingsKey + key, value.toMap());
+}
+
+auto Settings::tableSettings(const QString& key) const -> SqlSettings
+{
+    auto map = value(TableSettingsKey + key,
+                     defaultTableSettings().toMap()).toMap();
+    return SqlSettings::fromMap(map);
+}
+
+void Settings::setClassifiersPath(const QString value)
+{
+    setValue(ClassifiersPathKey, value);
+}
+
+QString Settings::getClassifiersPath() const
+{
+    QString defaultPath = QStringLiteral("../");
+    QString out = value(ClassifiersPathKey, defaultPath).toString();
+    if (!QFileInfo{out}.exists()) {
+        return defaultPath;
+    }
+    return out;
 }

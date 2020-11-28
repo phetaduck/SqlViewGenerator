@@ -1,5 +1,5 @@
 #include "sqlcombobox.h"
-#include <models/searchablesqltablemodel.h>
+#include <models/sqltablemodel.h>
 #include <utils/sqlsharedutils.h>
 
 #include <QTimer>
@@ -61,21 +61,25 @@ void SqlComboBox::setSelectedIndex(const QVariant& data)
 
 void SqlComboBox::setCurrentIndex(int index)
 {
-    m_lastSelectedIndex = index;
-    m_lastSelectedItem = QString{};
-    m_lastSelectedData = {selectedIndex().data().type()};
-    QComboBox::setCurrentIndex(index);
+    if (currentIndex() != index) {
+        m_lastSelectedIndex = index;
+        m_lastSelectedItem = QString{};
+        m_lastSelectedData = {selectedIndex().data().type()};
+        QComboBox::setCurrentIndex(index);
+    }
 }
 
 void SqlComboBox::setCurrentText(const QString& text)
 {
-    m_lastSelectedIndex = -1;
-    m_lastSelectedItem = text;
-    m_lastSelectedData = {selectedIndex().data().type()};
-    QComboBox::setCurrentText(text);
+    if (currentText() != text) {
+        m_lastSelectedIndex = -1;
+        m_lastSelectedItem = text;
+        m_lastSelectedData = {selectedIndex().data().type()};
+        QComboBox::setCurrentText(text);
+    }
 }
 
-SearchableSqlTableModel* SqlComboBox::sqlModel()
+SqlTableModel* SqlComboBox::sqlModel()
 {
     return m_sqlModel;
 }
@@ -86,7 +90,7 @@ auto SqlComboBox::sqlRelation() const -> const QSqlRelation&
 }
 
 
-void SqlComboBox::setSqlData(SearchableSqlTableModel* sqlModel,
+void SqlComboBox::setSqlData(SqlTableModel* sqlModel,
                 const QSqlRelation& sqlRelation)
 {
     m_sqlModel = sqlModel;
@@ -111,13 +115,19 @@ void SqlComboBox::setSqlRelation(const QSqlRelation& sqlRelation)
 {
     m_sqlRelation = sqlRelation;
     if (!m_sqlModel) {
-        m_sqlModel = ModelManager::sharedSqlTableModel<SearchableSqlTableModel>(m_sqlRelation.tableName());
+        m_sqlModel = ModelManager::sharedSqlTableModel<SqlTableModel>(m_sqlRelation.tableName());
         if (!m_sqlModel->isSelectedAtLeastOnce())
             m_sqlModel->select();
-        int column = m_sqlModel->fieldIndex(
-                         m_sqlRelation.displayColumn());
-        QComboBox::setModel(m_sqlModel);
-        setModelColumn(column);
     }
+    int column = m_sqlModel->fieldIndex(
+                     m_sqlRelation.displayColumn());
+    QComboBox::setModel(m_sqlModel);
+    setModelColumn(column);
     emit sqlRelationChanged(m_sqlRelation);
+}
+
+void SqlComboBox::setSqlModel(SqlTableModel* sqlModel)
+{
+    m_sqlModel = sqlModel;
+    QComboBox::setModel(m_sqlModel);
 }

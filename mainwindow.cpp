@@ -16,6 +16,10 @@
 #include "sqlsharedutils.h"
 #include "application.h"
 #include "sqlsyntaxhighlighter.h"
+#include "models/sqlfiltermodel.h"
+#include "updateviews.h"
+
+#include "viewsettings.h"
 
 template<typename PageClass>
 void createPage(const QString& title) {
@@ -121,16 +125,82 @@ void MainWindow::openSqlSlot()
     }
 }
 
+void MainWindow::initTableSettings()
+{
+    auto settings = Application::app()->settings();
+
+    const auto& dbMetaData = defaultDBs().value(settings.dbType());
+
+    ui->viewSettings->viewSchemaCb()->setSqlModel(
+                ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(
+                    dbMetaData.SchemaTable));
+    ui->viewSettings->viewSchemaCb()->setSqlRelation(QSqlRelation{dbMetaData.SchemaTable,
+                                                                  dbMetaData.SchemaTableNameColumn,
+                                                                  dbMetaData.SchemaTableNameColumn});
+
+}
+
+void MainWindow::connectTableSettingsSignals()
+{
+    connect(ui->viewSettings, &ViewSettings::sqlSettingsChanged,
+            this, [this](const SqlSettings& newSqlSettings)
+    {
+        if (ui->lv_Tables->currentIndex().isValid()) {
+            auto sqlSettings = newSqlSettings;
+            sqlSettings.table = ui->lv_Tables->currentIndex().data().toString();
+            sqlSettings.tableSchema = ui->cb_TableSchema->sqlComboBox()->currentText();
+            saveSqlSettings(sqlSettings.table, sqlSettings);
+            updateSqlScript(sqlSettings.table);
+        }
+    });
+}
+
+void MainWindow::setCurrentDb(const QString& text)
+{
+    auto settings = Application::app()->settings();
+    settings.setDbName(text);
+    auto mgr = ThreadingCommon::DBConn::instance();
+    mgr->setDBName(text);
+    const auto& dbMetaData = defaultDBs().value(settings.dbType());
+    m_schemaModel->setFilterAndSelectIfNeeded(dbMetaData.SchemaDB
+                                              + " = '"
+                                              + text
+                                              + "'");
+}
+
 void MainWindow::initFields()
 {
 
     auto settings = Application::app()->settings();
 
     ui->cb_Databases->setSqlRelation(defaultRelation(settings.dbType()));
-    ui->cb_Databases->sqlComboBox()->setData(settings.dbName());
+    ui->cb_Databases->setData(settings.dbName());
+
+    const auto& dbMetaData = defaultDBs().value(settings.dbType());
+
+    m_schemaModel = ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(
+                        dbMetaData.SchemaTable);
+    m_schemaModel->setFilter(dbMetaData.InfoDB + " = " + settings.dbName());
+
+    m_schemaTablesModel = ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(
+                              dbMetaData.InfoTable);
+
+    ui->cb_TableSchema->setSqlModel(
+                ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(
+                    dbMetaData.SchemaTable));
+    ui->cb_TableSchema->setSqlRelation(QSqlRelation{dbMetaData.SchemaTable,
+                                        dbMetaData.SchemaTableNameColumn,
+                                        dbMetaData.SchemaTableNameColumn});
+    ui->cb_TableSchema->setData("public");
+
+    ui->lv_Tables->setModel(m_schemaTablesModel);
+    ui->lv_Tables->setModelColumn(
+                m_schemaTablesModel->fieldIndex(
+                    dbMetaData.InfoTableName));
 
     auto makeHighlighter = [this](auto e) {
-        m_syntaxHighlighters[e] = std::make_shared<SQLSyntaxHighlighter>(e->document());
+        m_syntaxHighlighters[e] = std::make_shared<SQLSyntaxHighlighter>(
+                                      e->document());
     };
 
     makeHighlighter(ui->pte_Commands);
@@ -138,10 +208,31 @@ void MainWindow::initFields()
 
     ui->pte_Commands->setPlainText(settings.lastCommands());
 
+    initTableSettings();
+
+}
+
+SqlSettings MainWindow::updateSqlSettings(const QString& table)
+{
+    auto sqlSettings = getSqlSettings(table);
+    sqlSettings.tableSchema = ui->cb_TableSchema->sqlComboBox()->currentText();
+    sqlSettings.fieldOrder.clear();
+    sqlSettings.fieldOrder.push_back(sqlSettings.primaryKey);
+    sqlSettings.record = ThreadingCommon::DBConn::instance()->db().record(table);
+
+    for (int i = 0; i < sqlSettings.record.count(); i++) {
+        auto field = sqlSettings.record.field(i);
+        if (field.name() != sqlSettings.primaryKey) {
+            sqlSettings.fieldOrder.push_back(field.name());
+        }
+    }
+    saveSqlSettings(table, sqlSettings);
+    return sqlSettings;
 }
 
 void MainWindow::connectSignals()
 {
+    connectActionToPageCreation<UpdateViews>(ui->actionUpdate_Views);
     connect(ui->tb_SaveSql, &QToolButton::clicked,
             this, &MainWindow::saveSqlSlot);
 
@@ -151,219 +242,71 @@ void MainWindow::connectSignals()
     connect(ui->tb_OpenSql, &QToolButton::clicked,
             this, &MainWindow::openSqlSlot);
 
-    connect(ui->cb_Databases->sqlComboBox(), &SqlComboBox::currentTextChanged,
-            this, [this](const QString& dbName)
+    connect(ui->cb_Databases->sqlComboBox(), QOverload<int>::of(&SqlComboBox::currentIndexChanged),
+            this, [this](int index)
     {
         auto settings = Application::app()->settings();
+        auto dbName = ui->cb_Databases->sqlComboBox()->itemText(index);
         if (settings.dbName() != dbName) {
-            settings.setDbName(dbName);
-            auto mgr = ThreadingCommon::DBConn::instance();
-            mgr->setDBName(dbName);
-            dbconn = ThreadingCommon::DBConn::instance()->db();
-            if (!dbconn.isOpen()) return;
-            auto tables = dbconn.tables();
-            tables.sort();
-            ui->listWidget->clear();
-            ui->listWidget->addItems(tables);
+            setCurrentDb(dbName);
         }
     });
 
-    connect(ui->listWidget->selectionModel(), &QItemSelectionModel::currentChanged,
+    connect(ui->cb_TableSchema->comboBox(), QOverload<int>::of(&SqlComboBox::currentIndexChanged),
+            this, [this](int index)
+    {
+        QString schemaName =  ui->cb_TableSchema->sqlComboBox()->itemText(index);
+        auto settings = Application::app()->settings();
+        const auto& dbMetaData = defaultDBs().value(settings.dbType());
+        m_schemaTablesModel->setFilterAndSelectIfNeeded(dbMetaData.InfoDB
+                                                        + " = '"
+                                                        + settings.dbName()
+                                                        + "' AND "
+                                                        + dbMetaData.InfoSchemaName
+                                                        + " = '"
+                                                        + schemaName
+                                                        + "'"
+                                                        + " AND "
+                                                        + dbMetaData.InfoTableType
+                                                        + " = "
+                                                        + "'BASE TABLE'");
+    });
+
+    connect(ui->lv_Tables->selectionModel(), &QItemSelectionModel::currentChanged,
             this, [this](const QModelIndex& current, const QModelIndex&)
     {
         auto table = current.data().toString();
-        ui->tv_SelectedTableContents->init({table}, dbconn);
+        TableViewSettings tableViewSettings;
+        tableViewSettings.TableName = table;
+        ui->tv_SelectedTableContents->init(tableViewSettings, dbconn);
 
+        auto sqlSettings = updateSqlSettings(table);
+
+        ui->viewSettings->setSqlSettings(sqlSettings);
         updateSqlScript(table);
     });
+
+    connectTableSettingsSignals();
 }
 
 void MainWindow::updateSqlScript(const QString& table)
 {
-    auto record = dbconn.record(table);
-    auto primaryKey = QString {"id"};
+    if (table.isEmpty()) return;
 
-    QString viewSchema = "catalogs.";
-    QString tableSchema = "public.";
+    auto settings = Application::app()->settings();
+    auto sqlSettings = getSqlSettings(table);
 
-    QString viewName = viewSchema + table;
-    QString viewText;
-    QTextStream vts (&viewText);
-    vts << "--DROP VIEW IF EXISTS " << viewName << ";\n\n";
-    vts << "CREATE OR REPLACE VIEW " << viewName << " AS\n" << "SELECT\n";
+    sqlSettings.table = table;
 
-    QString insertFunctionText;
-    QTextStream ifsText (&insertFunctionText);
-    QString insertFunctionName = viewName + "_insert ()";
+    sqlSettings.record = ui->tv_SelectedTableContents->sqlModel()->record();
 
-    ifsText << "--DROP FUNCTION IF EXISTS " << insertFunctionName << ";\n\n";
-    ifsText << "CREATE OR REPLACE FUNCTION " << insertFunctionName << "\n";
-    ifsText << "\t" << "RETURNS trigger" << "\n" <<
-               "\t" << "LANGUAGE 'plpgsql'" << "\n" <<
-               "\t" << "COST 100" << "\n" <<
-               "\t" << "VOLATILE NOT LEAKPROOF SECURITY DEFINER" << "\n" <<
-               "AS $BODY$" << "\n" <<
-               "DECLARE new_id integer;\n" <<
-               "DECLARE new_row record;\n";
-    ifsText << "BEGIN" << "\n";
-    ifsText << "\t" << "INSERT INTO " << tableSchema << table << "\n\t(\n";
-
-    QString updateFunctionText;
-    QTextStream ufsText (&updateFunctionText);
-    QString updateFunctionName = viewName + "_update ()";
-
-    ufsText << "--DROP FUNCTION IF EXISTS " << updateFunctionName << ";\n\n";
-    ufsText << "CREATE OR REPLACE FUNCTION " << updateFunctionName << "\n";
-    ufsText << "\t" << "RETURNS trigger" << "\n" <<
-               "\t" << "LANGUAGE 'plpgsql'" << "\n" <<
-               "\t" << "COST 100" << "\n" <<
-               "\t" << "VOLATILE NOT LEAKPROOF SECURITY DEFINER" << "\n" <<
-               "AS $BODY$" << "\n";
-
-    if (record.contains("deleted_at")) {
-        ufsText << "DECLARE deleted_timestamp timestamp with time zone;\n";
-    }
-    ufsText << "BEGIN" << "\n";
-    if (record.contains("deleted_at")) {
-        ufsText << "\t" << "IF NEW.deleted AND OLD.deleted THEN" << "\n" <<
-                   "\t" << "\t" << "deleted_timestamp := (SELECT deleted_at FROM " << tableSchema <<
-                   table << " WHERE " << primaryKey << " = OLD.id);" << "\n" <<
-                   "\t" << "ELSIF NEW.deleted THEN" << "\n" <<
-                   "\t" << "\t" << "deleted_timestamp := NOW();" << "\n" <<
-                   "\t" << "ELSE" << "\n" <<
-                   "\t" << "\t" << "deleted_timestamp := NULL;" << "\n" <<
-                   "\t" << "END IF;" << "\n\n";
-    }
-    ufsText << "\t" << "UPDATE " << tableSchema << table <<
-               "\n" << "\t" << " SET \n";
-
-    QString deleteFunctionText;
-    QTextStream dfsText (&deleteFunctionText);
-    QString deleteFunctionName = viewName + "_delete ()";
-
-    dfsText << "--DROP FUNCTION IF EXISTS " << deleteFunctionName << ";\n\n";
-    dfsText << "CREATE OR REPLACE FUNCTION " << deleteFunctionName << "\n";
-    dfsText << "\t" << "RETURNS trigger" << "\n" <<
-               "\t" << "LANGUAGE 'plpgsql'" << "\n" <<
-               "\t" << "COST 100" << "\n" <<
-               "\t" << "VOLATILE NOT LEAKPROOF SECURITY DEFINER" << "\n" <<
-               "AS $BODY$" << "\n" <<
-               "BEGIN" << "\n";
-
-    if (record.contains("deleted_at")) {
-        dfsText << "\t" << "UPDATE " << tableSchema << table << " SET deleted_at = NOW()" <<
-                   " WHERE " << primaryKey << " = OLD." << primaryKey << ";\n";
-    } else {
-        dfsText << "\t" << "DELETE FROM " << tableSchema << table <<
-                   " WHERE " << primaryKey << " = OLD." << primaryKey << ";\n";
-    }
-    dfsText << "\t" << "RETURN NULL;\n\n";
-    dfsText << "END;\n" << "$BODY$;" << "\n\n";
-    dfsText << "ALTER FUNCTION " << deleteFunctionName << "\n" <<
-               "\t" << "OWNER TO admin;\n\n";
-
-    for (int i = 0; i < record.count(); i++) {
-        auto field = record.field(i);
-        if (field.name() == "deleted_at") {
-            vts << "\t" << "(" << table << "." << field.name() <<
-                   " IS NOT NULL" << ")" << " AS deleted";
-            if (i < record.count() - 1) {
-                vts << ",";
-            }
-            vts << "\n";
-        } else {
-            vts << "\t" << table << "." << field.name();
-            if (i < record.count() - 1) {
-                vts << ",";
-            }
-            vts << "\n";
-        }
-
-        if (field.name() != primaryKey && field.name() != "deleted_at") {
-            ifsText << "\t" << "\t" << field.name();
-            if (i < record.count() - 1
-                    && !(i+1 == record.count() - 1 && record.field(i+1).name() == "deleted_at")) {
-                ifsText << ",";
-            }
-            ifsText << "\n";
-        }
-
-        if (field.name() != primaryKey) {
-            ufsText << "\t" << "\t" << field.name() << " = ";
-            if (field.name() == "deleted_at") {
-                ufsText << "deleted_timestamp";
-            } else {
-                ufsText << "NEW." << field.name();
-            }
-            if (i < record.count() - 1) {
-                ufsText << ",";
-            }
-            ufsText << "\n";
-        }
-    }
-
-    vts << "FROM " << tableSchema << table << ";\n\n";
-
-    ifsText << "\t" << ") VALUES (\n";
-
-    for (int i = 0; i < record.count(); i++) {
-        auto field = record.field(i);
-        if (field.name() != primaryKey && field.name() != "deleted_at") {
-            ifsText << "\t" << "\t" << "NEW." << field.name();
-            if (i < record.count() - 1
-                    && !(i+1 == record.count() - 1 && record.field(i+1).name() == "deleted_at")) {
-                ifsText << ",";
-            }
-            ifsText << "\n";
-        }
-    }
-
-    ifsText << "\t" << ")\n" << "\t" << "RETURNING " << primaryKey << " INTO new_id;\n\n";
-    ifsText << "SELECT * INTO new_row FROM " << viewName << " WHERE " <<
-               primaryKey << " = new_id;\n\n";
-    ifsText << "RETURN new_row;\n\nEXCEPTION WHEN unique_violation THEN\n" <<
-               "RAISE EXCEPTION 'record already exists';\n\n";
-
-    ifsText << "END;\n" << "$BODY$;" << "\n\n";
-    ifsText << "ALTER FUNCTION " << insertFunctionName << "\n" <<
-               "\t" << "OWNER TO admin;\n\n";
-    ufsText << "\t" << "\n";
-    ufsText << "\t" << "WHERE  " << primaryKey << " = NEW." << primaryKey << ";\n\n";
-    ufsText << "\t" << "RETURN NEW;\n\n";
-
-    ufsText << "END;\n" << "$BODY$;" << "\n\n";
-    ufsText << "ALTER FUNCTION " << updateFunctionName << "\n" <<
-               "\t" << "OWNER TO admin;\n\n";
-
-    QString iTrgText;
-    QTextStream iTrgTS (&iTrgText);
-    QString iTrgName = table + "_insert_trg";
-
-    iTrgTS << "CREATE TRIGGER " << iTrgName << "\n";
-    iTrgTS << "\t"  << "INSTEAD OF INSERT" << "\n";
-    iTrgTS << "\t"  << "ON " << viewName << "\n";
-    iTrgTS << "\t"  << "FOR EACH ROW" << "\n";
-    iTrgTS << "\t"  << "EXECUTE PROCEDURE " << insertFunctionName << ";" << "\n" << "\n";
-
-    QString uTrgText;
-    QTextStream uTrgTS (&uTrgText);
-    QString uTrgName = table + "_update_trg";
-
-    uTrgTS << "CREATE TRIGGER " << uTrgName << "\n";
-    uTrgTS << "\t"  << "INSTEAD OF UPDATE" << "\n";
-    uTrgTS << "\t"  << "ON " << viewName << "\n";
-    uTrgTS << "\t"  << "FOR EACH ROW" << "\n";
-    uTrgTS << "\t"  << "EXECUTE PROCEDURE " << updateFunctionName << ";" << "\n" << "\n";
-
-    QString dTrgText;
-    QTextStream dTrgTS (&dTrgText);
-    QString dTrgName = table + "_delete_trg";
-
-    dTrgTS << "CREATE TRIGGER " << dTrgName << "\n";
-    dTrgTS << "\t"  << "INSTEAD OF DELETE" << "\n";
-    dTrgTS << "\t"  << "ON " << viewName << "\n";
-    dTrgTS << "\t"  << "FOR EACH ROW" << "\n";
-    dTrgTS << "\t"  << "EXECUTE PROCEDURE " << deleteFunctionName << ";" << "\n" << "\n";
+    QString viewText = SqlViewGenerator::viewSql(sqlSettings);
+    QString insertFunctionText = SqlViewGenerator::insetFunctionSql(sqlSettings);
+    QString updateFunctionText = SqlViewGenerator::updateFunctionSql(sqlSettings);
+    QString deleteFunctionText = SqlViewGenerator::deleteFunctionSql(sqlSettings);
+    QString iTrgText = SqlViewGenerator::insetTriggerSql(sqlSettings);
+    QString uTrgText = SqlViewGenerator::updateTriggerSql(sqlSettings);
+    QString dTrgText = SqlViewGenerator::deleteTriggerSql(sqlSettings);
 
     ui->te_Output->setText(
                 viewText
@@ -374,5 +317,25 @@ void MainWindow::updateSqlScript(const QString& table)
                 + uTrgText
                 + dTrgText
                 );
+}
+
+QString MainWindow::sqlSettingKey(const QString& table)
+{
+    auto settings = Application::app()->settings();
+    return settings.dbType() + settings.dbName() + table;
+}
+
+auto MainWindow::getSqlSettings(const QString& table) -> SqlSettings
+{
+    auto settings = Application::app()->settings();
+    auto settingsKey = settings.dbType() + settings.dbName() + table;
+    return settings.tableSettings(settingsKey);
+}
+
+void MainWindow::saveSqlSettings(const QString& table, const SqlSettings& sqlSettings)
+{
+    auto settings = Application::app()->settings();
+    auto settingsKey = settings.dbType() + settings.dbName() + table;
+    settings.setTableSettings(settingsKey, sqlSettings);
 }
 

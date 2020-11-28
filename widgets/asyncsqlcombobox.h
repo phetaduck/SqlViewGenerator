@@ -25,11 +25,19 @@ public:
 
     auto reloadButton() const -> QToolButton*;
 
+    void setSqlModel(AsyncSqlTableModel* model);
+
     auto sqlRelation() const -> const QSqlRelation&;
     void setSqlRelation(const QSqlRelation& relation);
 
     bool showClearButton() const;
     void setShowClearButton(bool showClearButton);
+
+    bool showReloadButton() const;
+    void setShowReloadButton(bool showReloadButton);
+
+public slots:
+    void setData(const QVariant& data);
 
 private slots:
     void onSyncFinished();
@@ -41,6 +49,8 @@ private:
     std::unique_ptr<QLabel> m_waitLabel = nullptr;
     std::unique_ptr<QToolButton> m_reloadButton = nullptr;
     std::unique_ptr<QToolButton> m_clearButton = nullptr;
+
+    QVariant m_selectedData;
 
     bool m_showClearButton = false;
     bool m_showReloadButton = false;

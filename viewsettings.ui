@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ViewSettings</class>
+ <widget class="QWidget" name="ViewSettings">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>344</width>
+    <height>195</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QGroupBox" name="gb_ViewSettings">
+     <property name="title">
+      <string>View Settings</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_3">
+      <item row="4" column="0" colspan="3">
+       <widget class="QComboBox" name="cb_Owner">
+        <item>
+         <property name="text">
+          <string>admin</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="lb_ViewComment">
+        <property name="text">
+         <string>View comment:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="cb_SortOrder">
+        <item>
+         <property name="text">
+          <string>ASC</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>DESC</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLabel" name="lb_ViewSchema">
+        <property name="text">
+         <string>ViewSchema</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0" colspan="3">
+       <widget class="QCheckBox" name="chb_DropView">
+        <property name="text">
+         <string>Commented DROP VIEW</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="2">
+       <widget class="AsyncSqlComboBox" name="cb_ViewSchema"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QComboBox" name="cb_TableFields"/>
+      </item>
+      <item row="3" column="1" colspan="2">
+       <widget class="QLineEdit" name="le_ViewComment"/>
+      </item>
+      <item row="2" column="2">
+       <widget class="QCheckBox" name="chb_Sort">
+        <property name="text">
+         <string>Sort</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QCheckBox" name="chb_DropFunction">
+        <property name="text">
+         <string>Commented DROP FUNCTION</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>AsyncSqlComboBox</class>
+   <extends>QComboBox</extends>
+   <header location="global">widgets/asyncsqlcombobox.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

@@ -15,7 +15,7 @@ using ParentModelClass = QAbstractTableModel;
  * Можно использовать и без работы с БД.
  * Достаточно передать кусок другой модели и указать названия полей.
  */
-class SearchableSqlTableModel : public ParentModelClass
+class SqlTableModel : public ParentModelClass
 {
     Q_OBJECT
     /// @brief свойство имени таблицы
@@ -47,10 +47,10 @@ public:
     using RowsCollection = std::vector<RowPtr>;
 
     /// Конструктор
-    explicit SearchableSqlTableModel(QObject *parent = nullptr,
+    explicit SqlTableModel(QObject *parent = nullptr,
                                      QSqlDatabase db = QSqlDatabase());
     /// Деструктор
-    virtual ~SearchableSqlTableModel();
+    virtual ~SqlTableModel();
 
     /**
      * @brief найти индекс в указанной колонке для указанного значения
@@ -339,7 +339,8 @@ public:
 
     void setAlwaysEditableColumns(const editable_column_list& alwaysEditableColumns);
 
-    bool isSelectedAtLeastOnce() const;
+    /** @brief returns true if select has already been called at least once */
+    virtual bool isSelectedAtLeastOnce() const;
     void setSelectedAtLeastOnce(bool selectedAtLeastOnce);
 
 public slots:

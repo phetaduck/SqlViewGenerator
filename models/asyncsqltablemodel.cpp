@@ -62,6 +62,7 @@ bool AsyncSqlTableModel::submitAll()
 bool AsyncSqlTableModel::select()
 {
     emit selectStarted();
+    setSelectedAtLeastOnce(true);
     return _internalSelect([this](){
         emit this->selectFinished();
     });
@@ -83,6 +84,11 @@ void AsyncSqlTableModel::revertAll()
 void AsyncSqlTableModel::setFilter(const QString& filter)
 {
     m_filter = filter;
+}
+
+bool AsyncSqlTableModel::isSelectedAtLeastOnce() const
+{
+    return SqlTableModel::isSelectedAtLeastOnce() || future.isRunning();
 }
 
 QString AsyncSqlTableModel::prepareUpdateStatement() const

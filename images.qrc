@@ -9,4 +9,7 @@
         <file>res/round_folder_open_black_24dp.png</file>
         <file>res/round_play_arrow_black_24dp.png</file>
     </qresource>
+    <qresource prefix="/">
+        <file>res/material-blue.qss</file>
+    </qresource>
 </RCC>

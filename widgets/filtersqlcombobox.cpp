@@ -6,7 +6,7 @@
 #include <QTableView>
 #include <QHeaderView>
 
-#include "models/searchablesqltablemodel.h"
+#include "models/sqltablemodel.h"
 
 FilterSqlComboBox::FilterSqlComboBox(QWidget *parent)
     : SqlComboBox(parent)
@@ -50,7 +50,7 @@ void FilterSqlComboBox::setModelColumn(int visibleColumn)
     m_completer->setCompletionColumn(visibleColumn);
 }
 
-void FilterSqlComboBox::setSqlData(SearchableSqlTableModel *model,
+void FilterSqlComboBox::setSqlData(SqlTableModel *model,
                                    const QSqlRelation& sqlRelation)
 {
     m_sqlModel = model;
