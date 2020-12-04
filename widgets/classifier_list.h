@@ -16,7 +16,7 @@ public:
     explicit Classifier_List(QWidget *parent = nullptr);
 
     void setClassifierList(
-            const std::vector<std::pair<QString, Classifiers::ClassifierSettings>>& list);
+            const Classifiers::TableDescriptorListType& list);
 private:
     std::unordered_map<QString, std::shared_ptr<QWidget>> m_widgets;
     QScrollArea* sArea = nullptr;

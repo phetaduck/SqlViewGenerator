@@ -36,6 +36,8 @@ public slots:
     void connectTableSettingsSignals();
     void setCurrentDb(const QString& text);
 
+    void saveSchema();
+
 protected:
     virtual void initFields();
     virtual void connectSignals();

@@ -17,7 +17,7 @@ public:
     ~Classifer_Name_Table();
 
     void setClassifierData(const QString& name,
-                           const Classifiers::ClassifierSettings& classifierDef,
+                           const Classifiers::SqlTableDescriptor& classifierDef,
                            int position);
 
 private:

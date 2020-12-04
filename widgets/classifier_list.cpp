@@ -25,7 +25,7 @@ Classifier_List::Classifier_List(QWidget *parent)
 }
 
 void Classifier_List::setClassifierList(
-        const std::vector<std::pair<QString, Classifiers::ClassifierSettings> >& list)
+        const Classifiers::TableDescriptorListType& list)
 {
     for (const auto& [key, widget] : m_widgets) {
         (void) key;

@@ -24,6 +24,7 @@ public slots:
 
 private:
     Ui::UpdateViews *ui;
-    Classifiers::ClassifiersListType newClassifierList;
+    Classifiers::TableDescriptorListType newClassifierList;
+    QHash<QString, QString> m_sql;
 };
 

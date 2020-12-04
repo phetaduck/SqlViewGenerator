@@ -14,7 +14,7 @@ Classifer_Name_Table::~Classifer_Name_Table()
 }
 
 void Classifer_Name_Table::setClassifierData(const QString& name,
-                                             const Classifiers::ClassifierSettings& classifierDef,
+                                             const Classifiers::SqlTableDescriptor& classifierDef,
                                              int position)
 {
     ui->gb_classifier->setTitle(name);

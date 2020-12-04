@@ -168,6 +168,61 @@ void MainWindow::setCurrentDb(const QString& text)
                                               + "'");
 }
 
+#include "psqlwrapper.h"
+
+void MainWindow::saveSchema()
+{
+    auto directoryPath = QFileDialog::getExistingDirectory(this, "Save SCHEMA as",
+                                                      Application::app()->settings().lastSqlFile());
+    if (directoryPath.isEmpty()) return;
+    auto writeSqlLambda = [&directoryPath, this]() {
+        auto psqlWrapper = SharedPoolCommon::sharedObject<PsqlWrapper>(QString{"PsqlWrapper"});
+        psqlWrapper->saveSchema(directoryPath
+                                + QDir::separator()
+                                + ui->cb_Databases->sqlComboBox()->currentText()
+                                + "_schema.sql",
+                                ui->cb_Databases->sqlComboBox()->currentText(),
+                                {"public", "catalogs", "project_facility", "project_facility_profile"});
+        QFile file {":/res/All_Classifiers.txt"};
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QStringList tables;
+            QTextStream ts{&file};
+            while (!ts.atEnd()) {
+                QString line = ts.readLine();
+                if (!line.isEmpty()) {
+                    tables << line;
+                }
+            }
+            file.close();
+            psqlWrapper->saveDataOnly(directoryPath
+                                      + QDir::separator()
+                                      + ui->cb_Databases->sqlComboBox()->currentText()
+                                      + "_classifiers.sql",
+                                      ui->cb_Databases->sqlComboBox()->currentText(),
+                                      {"public", "catalogs", "project_facility", "project_facility_profile"},
+                                      tables);
+        }
+        {
+            psqlWrapper->saveDataOnly(directoryPath
+                                      + QDir::separator()
+                                      + ui->cb_Databases->sqlComboBox()->currentText()
+                                      + "_data.sql",
+                                      ui->cb_Databases->sqlComboBox()->currentText(),
+                                      {"public", "catalogs", "project_facility", "project_facility_profile"},
+                                      {});
+        }
+    };
+    if (QFileInfo::exists(directoryPath)) {
+        QMessageBox overwriteDialog;
+        overwriteDialog.setText("File already exists! Do you wish to overwrite it?");
+        connect(&overwriteDialog, &QMessageBox::accepted,
+                this, writeSqlLambda);
+        overwriteDialog.exec();
+    } else {
+        writeSqlLambda();
+    }
+}
+
 void MainWindow::initFields()
 {
 
@@ -232,6 +287,8 @@ SqlSettings MainWindow::updateSqlSettings(const QString& table)
 
 void MainWindow::connectSignals()
 {
+    connect(ui->tb_SaveSchema, &QToolButton::clicked,
+            this, &MainWindow::saveSchema);
     connectActionToPageCreation<UpdateViews>(ui->actionUpdate_Views);
     connect(ui->tb_SaveSql, &QToolButton::clicked,
             this, &MainWindow::saveSqlSlot);

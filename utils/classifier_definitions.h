@@ -11,72 +11,56 @@
 #include "utils/application.h"
 #include "jsonconverters.h"
 
-/**
- * @brief Пространство имен для инкапсуляции данных связанных с классификаторами
- */
 namespace Classifiers {
 
-/**
- * @struct Структура настроек таблицы классификатора
- */
-struct ClassifierSettings
+struct SqlTableDescriptor
 {
     QString TableName; ///< Имя таблицы
-    std::vector<int> HiddenColumns = {}; ///< Колонки не показываемые пользователю
-    QHash<int, QString> Headers = {}; ///< Заголовки колонок
-    QHash<int, QSqlRelation> Relations = {}; ///< Словарь отношений в реляционных таблицах
-    QSqlTableModel::EditStrategy EditStrategy =
-            QSqlTableModel::OnManualSubmit; ///< Стратегия редактирования
-    std::pair<int, Qt::SortOrder> Sorting =
-    {0, Qt::SortOrder::AscendingOrder}; ///< Сортировка
-};
-
-struct TableViewSettings
-{
-    QString TableName; ///< Имя таблицы
-    std::vector<QString> HiddenColumns = {}; ///< Колонки не показываемые пользователю
+    std::vector<QString> ShownColumns = {}; ///< Колонки не показываемые пользователю
     QHash<QString, QString> Headers = {}; ///< Заголовки колонок
     QHash<QString, QSqlRelation> Relations = {}; ///< Словарь отношений в реляционных таблицах
     QSqlTableModel::EditStrategy EditStrategy =
             QSqlTableModel::OnManualSubmit; ///< Стратегия редактирования
     std::pair<QString, Qt::SortOrder> Sorting =
-    {"id", Qt::SortOrder::AscendingOrder}; ///< Сортировка
+    {"order_index", Qt::SortOrder::AscendingOrder}; ///< Сортировка
 };
 
-using ClassifiersListType = std::vector<std::pair<QString, ClassifierSettings>>;
+template <typename T>
+using vector_of_pairs = std::vector<std::pair<QString, T>>;
 
-static std::vector<std::pair<QString, ClassifierSettings>> KnownClassifiers;
+using TableDescriptorListType = vector_of_pairs<SqlTableDescriptor>;
 
-auto LoadClassifiers (const QString& filePath) -> decltype (KnownClassifiers)&;
+static TableDescriptorListType KnownSqlTableDescriptors;
 
-void SaveClassifiers (const QString& filePath);
+auto LoadSqlTableDescriptors (const QString& filePath) -> TableDescriptorListType&;
 
-void SaveClassifiers(const ClassifiersListType& classifiers,
+void SaveSqlTableDescriptors(const TableDescriptorListType& descriptors,
                      const QString& filePath);
 
-auto GetClassifiers () -> decltype (KnownClassifiers)&;
+void SaveSqlTableDescriptors (const QString& filePath);
+
+auto GetSqlTableDescriptors () -> TableDescriptorListType&;
 
 }
 
 template <> inline
-void JSON::fromJsonValue(const QJsonValue& json, Classifiers::ClassifierSettings& out)
+void JSON::fromJsonValue(const QJsonValue& json, Classifiers::SqlTableDescriptor& out)
 {
-    qDebug() << json.toString();
     QJsonObject object = json.toObject();
     JSON::fromJsonValue(object.value("TableName"), out.TableName);
     JSON::fromJsonValue(object.value("Headers"), out.Headers);
-    JSON::fromJsonValue(object.value("HiddenColumns"), out.HiddenColumns);
+    JSON::fromJsonValue(object.value("ShownColumns"), out.ShownColumns);
     JSON::fromJsonValue(object.value("Relations"), out.Relations);
     JSON::fromJsonValue(object.value("EditStrategy"), out.EditStrategy);
     JSON::fromJsonValue(object.value("Sorting"), out.Sorting);
 }
 
 template <> inline
-QJsonValue JSON::toJsonValue(const Classifiers::ClassifierSettings& cSettings)
+QJsonValue JSON::toJsonValue(const Classifiers::SqlTableDescriptor& cSettings)
 {
     QJsonObject out;
     out.insert("TableName", JSON::toJsonValue(cSettings.TableName));
-    out.insert("HiddenColumns", JSON::toJsonValue(cSettings.HiddenColumns));
+    out.insert("ShownColumns", JSON::toJsonValue(cSettings.ShownColumns));
     out.insert("Headers", JSON::toJsonValue(cSettings.Headers));
     out.insert("Relations", JSON::toJsonValue(cSettings.Relations));
     out.insert("EditStrategy", JSON::toJsonValue(cSettings.EditStrategy));
@@ -84,4 +68,4 @@ QJsonValue JSON::toJsonValue(const Classifiers::ClassifierSettings& cSettings)
     return out;
 }
 
-Q_DECLARE_METATYPE(Classifiers::ClassifierSettings);
+Q_DECLARE_METATYPE(Classifiers::SqlTableDescriptor);

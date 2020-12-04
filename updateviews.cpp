@@ -29,6 +29,23 @@ void UpdateViews::connectSignals()
             this, &UpdateViews::saveJsonSlot);
     connect(ui->tb_OpenCsv, &QToolButton::clicked,
             this, &UpdateViews::openCsvSlot);
+    connect(ui->tb_SaveSql, &QToolButton::clicked,
+            this, [this]()
+    {
+        auto settings = Application::app()->settings();
+        auto prevDir = settings.value("file/prevSqlDir", QStringLiteral(".")).toString();
+        auto dirname = QFileDialog::getExistingDirectory(this, "Save sql files to...",
+                                                         prevDir);
+        settings.setValue("file/prevSqlDir", dirname);
+        for (auto it = m_sql.begin(); it != m_sql.end(); it++) {
+            QFile file{dirname + QDir::separator() + it.key() + ".sql"};
+            if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QTextStream ts{&file};
+                ts << it.value();
+                file.close();
+            }
+        }
+    });
 }
 
 void UpdateViews::openJsonSlot()
@@ -40,9 +57,30 @@ void UpdateViews::openJsonSlot()
                         settings.getClassifiersPath(),
                         "JSON *.json");
     settings.setClassifiersPath(filename);
-    Classifiers::LoadClassifiers(filename);
-    const auto& classifiers = Classifiers::GetClassifiers();
+    Classifiers::LoadSqlTableDescriptors(filename);
+    const auto& classifiers = Classifiers::GetSqlTableDescriptors();
     ui->gb_Old->setClassifierList(classifiers);
+    ui->te_OldDescriptors->clear();
+    ui->te_OldTables->clear();
+    QString text;
+    QTextStream tts{&text};
+    for (const auto& classifier: classifiers) {
+        auto table = classifier.second.TableName;
+        table.remove("catalogs.");
+        table = "public." + table;
+        auto dName = classifier.first;
+        auto record = ThreadingCommon::DBConn::instance()->db("passport_show")
+                      .record(table);
+        if (record.contains("deleted_at")) {
+            ui->te_OldDescriptors->append(dName);
+            ui->te_OldTables->append(table);
+        } else {
+            ui->te_OldDescriptors->append("(" + dName + ") - missing");
+            ui->te_OldTables->append("(" + table + ") - missing");
+        }
+    }
+
+    ui->pte_Sql->clear();
 }
 
 void UpdateViews::saveJsonSlot()
@@ -53,7 +91,9 @@ void UpdateViews::saveJsonSlot()
                         "Save classifier list",
                         settings.getClassifiersPath(),
                         "JSON *.json");
-    Classifiers::SaveClassifiers(newClassifierList, filename);
+    const auto& classifiers = Classifiers::GetSqlTableDescriptors();
+    Classifiers::SaveSqlTableDescriptors(classifiers, filename);
+    //Classifiers::SaveClassifiers(newClassifierList, filename);
 }
 
 void UpdateViews::openCsvSlot()
@@ -67,7 +107,7 @@ void UpdateViews::openCsvSlot()
     settings.setValue("file/csv", filename);
     QFile file {filename};
     newClassifierList.clear();
-    auto classifiers = Classifiers::GetClassifiers();
+    auto classifiers = Classifiers::GetSqlTableDescriptors();
     newClassifierList.reserve(classifiers.size());
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream ts{&file};
@@ -101,6 +141,8 @@ void UpdateViews::openCsvSlot()
                 SqlSettings sqlSettings;
                 sqlSettings.table = classifier.second.TableName;
                 sqlSettings.table.remove("catalogs.");
+                m_sql[sqlSettings.table] = QString {};
+                QTextStream lts{&m_sql[sqlSettings.table]};
                 sqlSettings.tableSchema = "public";
                 sqlSettings.viewSchema = "catalogs";
                 sqlSettings.primaryKey = "id";
@@ -120,13 +162,14 @@ void UpdateViews::openCsvSlot()
                 sqlSettings.dropView = false;
                 sqlSettings.owner = "admin";
 
-                tts << SqlViewGenerator::viewSql(sqlSettings);
-                tts << SqlViewGenerator::insetFunctionSql(sqlSettings);
-                tts << SqlViewGenerator::updateFunctionSql(sqlSettings);
-                tts << SqlViewGenerator::deleteFunctionSql(sqlSettings);
-                tts << SqlViewGenerator::insetTriggerSql(sqlSettings);
-                tts << SqlViewGenerator::updateTriggerSql(sqlSettings);
-                tts << SqlViewGenerator::deleteTriggerSql(sqlSettings);
+                lts << SqlViewGenerator::viewSql(sqlSettings);
+                lts << SqlViewGenerator::insetFunctionSql(sqlSettings);
+                lts << SqlViewGenerator::updateFunctionSql(sqlSettings);
+                lts << SqlViewGenerator::deleteFunctionSql(sqlSettings);
+                lts << SqlViewGenerator::insetTriggerSql(sqlSettings);
+                lts << SqlViewGenerator::updateTriggerSql(sqlSettings);
+                lts << SqlViewGenerator::deleteTriggerSql(sqlSettings);
+                tts << m_sql[sqlSettings.table];
             }
         }
 

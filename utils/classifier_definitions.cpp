@@ -1,6 +1,6 @@
 #include "classifier_definitions.h"
 
-auto Classifiers::LoadClassifiers(const QString& filePath) -> decltype (Classifiers::KnownClassifiers)&
+auto Classifiers::LoadSqlTableDescriptors(const QString& filePath) -> TableDescriptorListType&
 {
     auto settings = Application::app()->settings();
     settings.setClassifiersPath(filePath);
@@ -12,16 +12,16 @@ auto Classifiers::LoadClassifiers(const QString& filePath) -> decltype (Classifi
         auto data = all.toUtf8();
         auto doc = QJsonDocument::fromJson(data);
         file.close();
-        JSON::fromJsonValue(doc.array(), Classifiers::KnownClassifiers);
+        JSON::fromJsonValue(doc.array(), Classifiers::KnownSqlTableDescriptors);
     }
-    return Classifiers::KnownClassifiers;
+    return Classifiers::KnownSqlTableDescriptors;
 }
 
-void Classifiers::SaveClassifiers(const QString& filePath)
+void Classifiers::SaveSqlTableDescriptors(const QString& filePath)
 {
     /// @note temporary
     QJsonDocument doc;
-    doc.setArray(JSON::toJsonValue(Classifiers::KnownClassifiers).toArray());
+    doc.setArray(JSON::toJsonValue(Classifiers::KnownSqlTableDescriptors).toArray());
     auto settings = Application::app()->settings();
     settings.setClassifiersPath(filePath);
     QFile file{filePath};
@@ -32,12 +32,21 @@ void Classifiers::SaveClassifiers(const QString& filePath)
     }
 }
 
-void Classifiers::SaveClassifiers(const ClassifiersListType& classifiers,
-                                  const QString& filePath)
+auto Classifiers::GetSqlTableDescriptors() -> TableDescriptorListType&
+{
+    if (Classifiers::KnownSqlTableDescriptors.empty()) {
+        auto settings = Application::app()->settings();
+        return LoadSqlTableDescriptors(settings.getClassifiersPath());
+    }
+    return Classifiers::KnownSqlTableDescriptors;
+}
+
+void Classifiers::SaveSqlTableDescriptors(const Classifiers::TableDescriptorListType& descriptors,
+                                          const QString& filePath)
 {
     /// @note temporary
     QJsonDocument doc;
-    doc.setArray(JSON::toJsonValue(classifiers).toArray());
+    doc.setArray(JSON::toJsonValue(descriptors).toArray());
     auto settings = Application::app()->settings();
     QFile file{filePath};
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -45,13 +54,4 @@ void Classifiers::SaveClassifiers(const ClassifiersListType& classifiers,
         ts << QString::fromLocal8Bit(doc.toJson());
         file.close();
     }
-}
-
-auto Classifiers::GetClassifiers() -> decltype (Classifiers::KnownClassifiers)&
-{
-    if (Classifiers::KnownClassifiers.empty()) {
-        auto settings = Application::app()->settings();
-        return LoadClassifiers(settings.getClassifiersPath());
-    }
-    return Classifiers::KnownClassifiers;
 }

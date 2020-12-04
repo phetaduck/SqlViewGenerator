@@ -25,12 +25,14 @@ SOURCES += \
     models/asyncsqltablemodel.cpp \
     models/sqlfiltermodel.cpp \
     models/sqltablemodel.cpp \
+    postgresqldump.cpp \
     tablecolumnview.cpp \
     updateviews.cpp \
     utils/application.cpp \
     utils/classifier_definitions.cpp \
     utils/jsonconverters.cpp \
     utils/modelmanager.cpp \
+    utils/psqlwrapper.cpp \
     utils/settings.cpp \
     utils/sqlsharedutils.cpp \
     utils/sqlsyntaxhighlighter.cpp \
@@ -58,12 +60,14 @@ HEADERS += \
     models/asyncsqltablemodel.h \
     models/sqlfiltermodel.h \
     models/sqltablemodel.h \
+    postgresqldump.h \
     tablecolumnview.h \
     updateviews.h \
     utils/application.h \
     utils/classifier_definitions.h \
     utils/jsonconverters.h \
     utils/modelmanager.h \
+    utils/psqlwrapper.h \
     utils/settings.h \
     utils/sqlsharedutils.h \
     utils/sqlsyntaxhighlighter.h \
@@ -79,6 +83,7 @@ FORMS += \
     classifer_name_table.ui \
     dialogs/authentificationdialog.ui \
     mainwindow.ui \
+    postgresqldump.ui \
     tablecolumnview.ui \
     updateviews.ui \
     viewsettings.ui
