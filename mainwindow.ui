@@ -84,7 +84,7 @@
          </property>
          <property name="icon">
           <iconset resource="images.qrc">
-           <normaloff>:/img/res/outline_save_black_24dp.png</normaloff>:/img/res/outline_save_black_24dp.png</iconset>
+           <normaloff>:/img/res/round_folder_open_black_24dp.png</normaloff>:/img/res/round_folder_open_black_24dp.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -135,7 +135,7 @@
          </property>
          <property name="icon">
           <iconset resource="images.qrc">
-           <normaloff>:/img/res/round_folder_open_black_24dp.png</normaloff>:/img/res/round_folder_open_black_24dp.png</iconset>
+           <normaloff>:/img/res/outline_save_black_24dp.png</normaloff>:/img/res/outline_save_black_24dp.png</iconset>
          </property>
          <property name="iconSize">
           <size>
