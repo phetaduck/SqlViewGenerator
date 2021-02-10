@@ -1,5 +1,4 @@
-#ifndef TABLECOLUMNVIEW_H
-#define TABLECOLUMNVIEW_H
+#pragma once
 
 #include <QWidget>
 
@@ -33,5 +32,3 @@ signals:
 private:
     Ui::TableColumnView *ui;
 };
-
-#endif // TABLECOLUMNVIEW_H

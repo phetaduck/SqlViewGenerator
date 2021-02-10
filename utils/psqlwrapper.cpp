@@ -100,8 +100,6 @@ void PsqlWrapper::saveDataOnly(const QString& fileName,
     dump_input << "--role=admin";
     dump_input << "--data-only";
     dump_input << "--column-inserts";
-    //dump_input << "-U" << settings.lastLogin();
-    //dump_input << "-d" << dbname;
     dump_input << QString{"--dbname=postgresql://%1:%2@%3:%4/%5"}
                   .arg(settings.lastLogin())
                   .arg(settings.dbPass())
@@ -139,48 +137,4 @@ void PsqlWrapper::saveDataOnly(const QString& fileName,
     pgDumpProcess->setArguments(dump_input);
     qDebug() << pgDumpProcess->program() + " " + pgDumpProcess->arguments().join(" ");
     pgDumpProcess->start();
-}
-
-void PsqlWrapper::saveInsertScript(const QString& fileName,
-                                   const QString& dbname,
-                                   const QStringList& tables,
-                                   const QString& filter,
-                                   std::function<void (int, QProcess::ExitStatus)> callback)
-{
-
-}
-
-void PsqlWrapper::serializeModelsData(const QString& fileName,
-                                      const QString& dbname)
-{
-    QFile insertScriptFile {fileName};
-    if (insertScriptFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QTextStream ts{&insertScriptFile};
-        for (const auto& model : m_finishedModels) {
-            auto rowCount = model->rowCount();
-            auto record = model->record();
-            ts << "INSERT INTO " << model->tableName() << "\n";
-            ts << "(" << "\n";
-            ts << "\t";
-            for (int i = 0; i < record.count(); i++) {
-                if ( record.fieldName(i) != "deleted_at") {
-                    ts << record.fieldName(i);
-                }
-                if (i < record.count() - 1
-                        && !(i+1 == record.count() - 1
-                             && record.fieldName(i+1) == "deleted_at"))
-                {
-                    ts << ",";
-                }
-                ts << "\n";
-            }
-            ts << "VALUES\n";
-            for (int i = 0; i < rowCount; i++) {
-                ts << "(";
-                const auto& row = model->rowAt(i);
-
-            }
-        }
-        insertScriptFile.close();
-    }
 }

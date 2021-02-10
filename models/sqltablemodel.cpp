@@ -11,7 +11,7 @@
 #include <QDebug>
 
 SqlTableModel::SqlTableModel(QObject* parent,
-                                                 QSqlDatabase db) :
+                             QSqlDatabase db) :
     ParentModelClass(parent), m_db(db)
 {}
 
@@ -149,16 +149,16 @@ QVariant SqlTableModel::data(const QModelIndex& idx, int role) const
 }
 
 QVariant SqlTableModel::data(int row,
-                                       const QString& fieldName,
-                                       int role)
+                             const QString& fieldName,
+                             int role)
 {
     auto modelIndex = index(row, fieldName);
     return data(modelIndex, role);
 }
 
 bool SqlTableModel::setData(const QModelIndex& index,
-                                      const QVariant& value,
-                                      int role)
+                            const QVariant& value,
+                            int role)
 {
     if (index.isValid())
     {
@@ -168,9 +168,9 @@ bool SqlTableModel::setData(const QModelIndex& index,
 }
 
 bool SqlTableModel::setData(int row,
-                                      const QString& fieldName,
-                                      const QVariant& value,
-                                      int role)
+                            const QString& fieldName,
+                            const QVariant& value,
+                            int role)
 {
     auto modelIndex = index(row, fieldName);
     return setData(modelIndex, value, role);
@@ -314,9 +314,12 @@ void SqlTableModel::setTableName(const QString& tableName)
 {
     if (tableName != m_tableName) {
         m_tableName = tableName;
-        if (!m_lazyInit) {
-            getFieldNames();
+        auto list = m_tableName.split(".", Qt::SkipEmptyParts);
+        if (list.size() == 2) {
+            m_schema = list[0];
+            m_bareTableName = list[1];
         }
+        loadFieldNames();
     }
     emit tableNameChanged(tableName);
 }
@@ -357,7 +360,7 @@ bool SqlTableModel::_internalSelect(std::function<void ()> callback)
         beginResetModel();
         m_rows.clear();
         if (m_lazyInit) {
-            getFieldNames();
+            loadFieldNames();
         }
         if (query.size()) {
             m_rows.reserve(query.size());
@@ -401,8 +404,8 @@ bool SqlTableModel::submitAll()
     insertResult = performInsert();
 
     _internalSelect([this](){
-                        emit this->submitAllFinished();
-                    });
+        emit this->submitAllFinished();
+    });
 
     return updateResult && deleteResult && insertResult;
 }
@@ -420,13 +423,11 @@ void SqlTableModel::setRows(const SqlTableModel::RowsCollection& rowsCollection)
     endResetModel();
 }
 
-void SqlTableModel::getFieldNames() {
+void SqlTableModel::loadFieldNames()
+{
     m_fieldNames.clear();
     m_defaultRecord = m_db.record(m_tableName);
-    if (m_primaryKey.isEmpty()) {
-        m_primaryKey = m_db.primaryIndex(m_tableName).name();
-        if (m_primaryKey.isEmpty()) m_primaryKey = "id";
-    }
+
     for (int i = 0; i < m_defaultRecord.count(); i++) {
         m_fieldNames.push_back(m_defaultRecord.fieldName(i));
     }
@@ -467,17 +468,18 @@ bool SqlTableModel::performUpdate()
         }
     }
 
-    if (varLists.size())
+    if (!varLists.isEmpty())
     {
         request = "UPDATE " + m_tableName + " SET  ";
-        for (const auto& field : m_fieldNames) {
-            if (m_defaultRecord.isGenerated(field)) {
-                request += field + " = " + "?,";
-            }
+        for (const auto& field : getRegularKeys()) {
+            request += field + " = " + "?,";
         }
-
         request.remove(request.size() - 1, 1);
-        request += " WHERE " + m_primaryKey + " = :" + m_primaryKey + ";";
+
+        request += " WHERE ";
+        QTextStream ts {&request};
+        ts << makePrimaryKeysNamedFilter();
+        ts << ";";
 
         QSqlQuery query{m_db};
 
@@ -489,28 +491,24 @@ bool SqlTableModel::performUpdate()
             msgBox.exec();
         }
 
-        for (const auto& field : m_fieldNames) {
-            if (field != m_primaryKey)
-                query.addBindValue(varLists[field]);
+        for (const auto& field : getRegularKeys()) {
+            query.addBindValue(varLists[field]);
         }
-        if (varLists.count(m_primaryKey)) {
-            query.addBindValue(varLists[m_primaryKey]);
 
-            auto execResult = query.execBatch();
+        for (const auto& field : getPrimaryKeys()) {
+            query.addBindValue(varLists[field]);
+        }
 
-            if (!execResult) {
-                qDebug() << query.lastError().text();
-                QMessageBox msgBox;
-                msgBox.setText(query.lastError().text());
-                msgBox.exec();
-            }
+        auto execResult = query.execBatch();
 
-            out &= execResult;
-        } else {
+        if (!execResult) {
+            qDebug() << query.lastError().text();
             QMessageBox msgBox;
-            msgBox.setText(m_primaryKey + " не является основным ключом");
+            msgBox.setText(query.lastError().text());
             msgBox.exec();
         }
+
+        out &= execResult;
     }
 
     return out;
@@ -526,13 +524,13 @@ bool SqlTableModel::performDelete()
 
     for (const auto& row : m_rows) {
         if (row->status == RowStatus::Deleted) {
-            varList << row->rowData.value(m_primaryKey);
+            varList << row->rowData.value(getPrimaryKeys());
         }
     }
 
     if (!varList.isEmpty())
     {
-        request = "DELETE FROM " + m_tableName + " WHERE " + m_primaryKey + " IN (?);";
+        request = "DELETE FROM " + m_tableName + " WHERE " + getPrimaryKeys() + " IN (?);";
 
         QSqlQuery query{m_db};
 
@@ -595,13 +593,13 @@ bool SqlTableModel::performInsert()
     {
         request = "INSERT INTO " + m_tableName + " ( ";
         for (const auto& field : m_fieldNames) {
-            if (field != m_primaryKey)
+            if (field != getPrimaryKeys())
                 request += field + ",";
         }
         request.remove(request.size() - 1, 1);
         request += ") VALUES (";
         for (const auto& field : m_fieldNames) {
-            if (field != m_primaryKey)
+            if (field != getPrimaryKeys())
                 request += ":" + field + ",";
         }
         request.remove(request.size() - 1, 1);
@@ -616,7 +614,7 @@ bool SqlTableModel::performInsert()
             msgBox.exec();
         }
         for (const auto& field : m_fieldNames) {
-            if (field != m_primaryKey)
+            if (field != getPrimaryKeys())
                 query.addBindValue(varLists[field]);
         }
 
@@ -684,7 +682,7 @@ QString SqlTableModel::generateUpdateRequest(bool& ok) const
     }
     out.remove(out.size() - 1, 1);
     out += " ) ";
-    out += "WHERE N."+ m_primaryKey + " = O." + m_primaryKey + ";";
+    out += "WHERE N."+ getPrimaryKeys() + " = O." + getPrimaryKeys() + ";";
     return out;
 }
 
@@ -720,8 +718,8 @@ QString SqlTableModel::generateInsertRequest(bool& ok) const {
 }
 
 bool SqlTableModel::insertRows(int row,
-                                         const RowsCollection& rows,
-                                         const QModelIndex& parent)
+                               const RowsCollection& rows,
+                               const QModelIndex& parent)
 {
     if (rows.empty()) return false;
     int actualRow = row;
@@ -758,6 +756,69 @@ void SqlTableModel::showTextMessage(const QString& debugText, const QString& use
         msgBox.exec();
     });
 #endif
+}
+
+void SqlTableModel::loadPrimaryKeys()
+{
+    auto primaryIndex = m_db.primaryIndex(m_tableName).name();
+    QSqlQuery query {m_db};
+    QString request = "SELECT column_name FROM "
+                      "information_schema.constraint_column_usage WHERE "
+                      "table_name = '"
+                      + m_tableName
+                      + "' AND constraint_name = '"
+                      + primaryIndex
+                      + "';";
+    if (query.exec(request)) {
+        m_primaryKeys.clear();
+        while (query.next()) {
+            m_primaryKeys << query.value("column_name").toString();
+        }
+    }
+    m_regularKeys.clear();
+    for (int i = 0; i < m_defaultRecord.count(); ++i) {
+        auto fieldName = m_defaultRecord.fieldName(i);
+        if (m_defaultRecord.isGenerated(i)
+                && !m_primaryKeys.contains(fieldName))
+        {
+            m_regularKeys << fieldName;
+        }
+    }
+}
+
+auto SqlTableModel::makePrimaryKeysNamedFilter() -> QString
+{
+    QString out;
+    QTextStream ts{&out};
+    const auto& primaryKeys = getPrimaryKeys();
+    for (auto it = primaryKeys.begin(); it != primaryKeys.end(); it++)
+    {
+        ts << *it << " = :" << *it << " ";
+        if (it + 1 != primaryKeys.end()) {
+            ts << "AND ";
+        } else {
+            ts << " ";
+        }
+    }
+    return out;
+}
+
+auto SqlTableModel::getRegularKeys() -> const QStringList&
+{
+    return m_regularKeys;
+}
+
+void SqlTableModel::setRegularKeys(const QStringList& regularKeys)
+{
+    m_regularKeys = regularKeys;
+}
+
+auto SqlTableModel::getPrimaryKeys() -> const QStringList&
+{
+    if (m_primaryKeys.isEmpty()) {
+        loadPrimaryKeys();
+    }
+    return m_primaryKeys;
 }
 
 bool SqlTableModel::isSelectedAtLeastOnce() const
@@ -816,8 +877,8 @@ QVariant SqlTableModel::headerData(int section, Qt::Orientation orientation, int
 }
 
 bool SqlTableModel::setHeaderData(int section,
-                                            Qt::Orientation orientation,
-                                            const QVariant& value, int role)
+                                  Qt::Orientation orientation,
+                                  const QVariant& value, int role)
 {
     if (orientation == Qt::Horizontal) {
         m_headerData[section] = value;
@@ -944,9 +1005,9 @@ bool SqlTableModel::isRowMarkedForDeletion(int row)
     return m_rows[row]->status == RowStatus::Deleted;
 }
 
-void SqlTableModel::setPrimaryKey(const QString& fieldName)
+void SqlTableModel::setPrimaryKeys(const QStringList& fieldNames)
 {
-    m_primaryKey = fieldName;
+    m_primaryKeys = fieldNames;
 }
 
 auto SqlTableModel::checkableColumns() const

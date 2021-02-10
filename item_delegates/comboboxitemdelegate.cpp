@@ -69,6 +69,7 @@ void ComboBoxItemDelegate::setRelation(QSqlRelation relation)
     m_relation = std::move(relation);
     m_commitLambda = [this](QWidget* editor)
     {
+        // workaround for gcc 6.6
         emit this->commitData(editor);
     };
     if (!m_sqlModel)

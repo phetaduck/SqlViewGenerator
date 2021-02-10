@@ -26,14 +26,6 @@ public:
                       const QStringList& schemas,
                       const QStringList& tables,
                       std::function<void(int, QProcess::ExitStatus)> callback);
-    void saveInsertScript(const QString& fileName,
-                          const QString& dbname,
-                          const QStringList& tables,
-                          const QString& filter,
-                          std::function<void(int, QProcess::ExitStatus)> callback);
-
-    void serializeModelsData(const QString& fileName,
-                             const QString& dbname);
 private:
     struct BackupJob {
         QString fileName;

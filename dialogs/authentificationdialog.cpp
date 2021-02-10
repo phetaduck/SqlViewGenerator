@@ -8,6 +8,10 @@ AuthentificationDialog::AuthentificationDialog(QWidget *parent) :
     ui(new Ui::AuthentificationDialog)
 {
     ui->setupUi(this);
+
+    auto dbTypes = defaultDBs().keys();
+    ui->cb_Type->addItems(dbTypes);
+
     auto settings = Application::app()->settings();
     ui->le_Host->setText(settings.dbHostName());
     ui->le_User->setText(settings.lastLogin());

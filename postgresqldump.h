@@ -1,5 +1,4 @@
-#ifndef POSTGRESQLDUMP_H
-#define POSTGRESQLDUMP_H
+#pragma once
 
 #include <QWidget>
 
@@ -18,5 +17,3 @@ public:
 private:
     Ui::PostgreSqlDump *ui;
 };
-
-#endif // POSTGRESQLDUMP_H

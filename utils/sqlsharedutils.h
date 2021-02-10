@@ -43,22 +43,22 @@ inline QHash<QString, DBTypeDesc>& defaultDBs ()
                 "schema_name",
             }
         },
-        {"QMYSQL",
-            {
-                "information_schema",
-                {
-                    "schemata", "schema_name", "schema_name"
-                },
-                "information_schema.tables",
-                "table_catalog",
-                "table_schema",
-                "table_name",
-                "table_type",
-                "information_schema.schemata",
-                "catalog_name",
-                "schema_name",
-            }
-        }
+//        {"QMYSQL",
+//            {
+//                "information_schema",
+//                {
+//                    "schemata", "schema_name", "schema_name"
+//                },
+//                "information_schema.tables",
+//                "table_catalog",
+//                "table_schema",
+//                "table_name",
+//                "table_type",
+//                "information_schema.schemata",
+//                "catalog_name",
+//                "schema_name",
+//            }
+//        }
     };
 
     return out;

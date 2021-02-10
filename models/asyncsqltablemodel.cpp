@@ -95,11 +95,11 @@ QString AsyncSqlTableModel::prepareUpdateStatement() const
 {
     QString out = "UPDATE " + m_tableName + " SET  ";
     for (const auto& field : m_fieldNames) {
-        if (field != m_primaryKey)
+        if (field != m_primaryKeys)
             out += field + " = :" + field + ",";
     }
     out.remove(out.size() - 1, 1);
-    out += " WHERE " + m_primaryKey + " = :" + m_primaryKey + " RETURNING *;";
+    out += " WHERE " + m_primaryKeys + " = :" + m_primaryKeys + " RETURNING *;";
     return out;
 }
 
@@ -137,7 +137,7 @@ bool AsyncSqlTableModel::_internalSelect(std::function<void ()> callback)
         if (query.exec(request)) {
             m_syncRowsCache.clear();
             if (m_lazyInit) {
-                getFieldNames();
+                loadFieldNames();
             }
             if (query.size()) {
                 m_syncRowsCache.reserve(query.size());
@@ -229,7 +229,7 @@ bool AsyncSqlTableModel::performDelete()
     }
     if (deletedRowNumbers.size())
     {
-        request = "DELETE FROM " + m_tableName + " WHERE " + m_primaryKey + " = ?;";
+        request = "DELETE FROM " + m_tableName + " WHERE " + m_primaryKeys + " = ?;";
         auto db = ThreadingCommon::DBConn::instance()->db();
         QSqlQuery query{db};
         out = query.prepare(request);
@@ -240,7 +240,7 @@ bool AsyncSqlTableModel::performDelete()
             bool execResult = true;
             QStringList errors;
             for (const auto& rowC : deletedRowNumbers) {
-                auto id = m_syncRowsCache[rowC]->rowData.value(m_primaryKey);
+                auto id = m_syncRowsCache[rowC]->rowData.value(m_primaryKeys);
                 query.bindValue(0, id);
                 execResult = query.exec();
                 if (!execResult) {
@@ -277,13 +277,13 @@ bool AsyncSqlTableModel::performInsert()
     {
         request = "INSERT INTO " + m_tableName + " ( ";
         for (const auto& field : m_fieldNames) {
-            if (field != m_primaryKey)
+            if (field != m_primaryKeys)
                 request += field + ",";
         }
         request.remove(request.size() - 1, 1);
         request += ") VALUES (";
         for (const auto& field : m_fieldNames) {
-            if (field != m_primaryKey)
+            if (field != m_primaryKeys)
                 request += ":" + field + ",";
         }
         request.remove(request.size() - 1, 1);
@@ -300,7 +300,7 @@ bool AsyncSqlTableModel::performInsert()
             for (auto it = insertedRows.begin(); it != insertedRows.end(); it++) {
                 auto& iRow = it.value();
                 for (const auto& field : m_fieldNames) {
-                    if (field != m_primaryKey)
+                    if (field != m_primaryKeys)
                         query.bindValue(":" + field, iRow->rowData.value(field));
                 }
                 execResult &= query.exec();
@@ -308,7 +308,7 @@ bool AsyncSqlTableModel::performInsert()
                     if (query.next()) {
                         iRow->rowData = query.record();
                         iRow->status = RowStatus::None;
-                        m_lastInsertId = iRow->rowData.value(m_primaryKey);
+                        m_lastInsertId = iRow->rowData.value(m_primaryKeys);
                     }
                 } else {
                     errors << query.lastError().text();

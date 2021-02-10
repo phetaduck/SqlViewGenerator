@@ -172,19 +172,22 @@ void MainWindow::setCurrentDb(const QString& text)
 
 void MainWindow::saveSchema()
 {
-    auto directoryPath = QFileDialog::getExistingDirectory(this, "Save SCHEMA as",
-                                                      Application::app()->settings().lastSqlFile());
+    auto directoryPath = QFileDialog::getExistingDirectory(
+                             this, "Save SCHEMA as",
+                             Application::app()->settings().lastSqlFile());
     if (directoryPath.isEmpty()) return;
     auto writeSqlLambda = [&directoryPath, this]() {
         auto psqlWrapper = SharedPoolCommon::sharedObject<PsqlWrapper>(QString{"PsqlWrapper"});
-        psqlWrapper->saveSchema(directoryPath
-                                + QDir::separator()
-                                + ui->cb_Databases->sqlComboBox()->currentText()
-                                + "_schema.sql",
-                                ui->cb_Databases->sqlComboBox()->currentText(),
-                                {"public", "catalogs", "project_facility", "project_facility_profile"});
+        psqlWrapper->saveSchema(
+                    directoryPath
+                    + QDir::separator()
+                    + ui->cb_Databases->sqlComboBox()->currentText()
+                    + "_schema.sql",
+                    ui->cb_Databases->sqlComboBox()->currentText(),
+                    {"public", "catalogs", "project_facility", "project_facility_profile"});
         QFile file {":/res/All_Classifiers.txt"};
-        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
             QStringList tables;
             QTextStream ts{&file};
             while (!ts.atEnd()) {
@@ -194,13 +197,14 @@ void MainWindow::saveSchema()
                 }
             }
             file.close();
-            psqlWrapper->saveDataOnly(directoryPath
-                                      + QDir::separator()
-                                      + ui->cb_Databases->sqlComboBox()->currentText()
-                                      + "_classifiers.sql",
-                                      ui->cb_Databases->sqlComboBox()->currentText(),
-                                      {"public", "catalogs", "project_facility", "project_facility_profile"},
-                                      tables);
+            psqlWrapper->saveDataOnly(
+                        directoryPath
+                        + QDir::separator()
+                        + ui->cb_Databases->sqlComboBox()->currentText()
+                        + "_classifiers.sql",
+                        ui->cb_Databases->sqlComboBox()->currentText(),
+                        {"public", "catalogs", "project_facility", "project_facility_profile"},
+                        tables);
         }
         {
             psqlWrapper->saveDataOnly(directoryPath
@@ -244,8 +248,8 @@ void MainWindow::initFields()
                 ModelManager::sharedSqlTableModel<AsyncSqlTableModel>(
                     dbMetaData.SchemaTable));
     ui->cb_TableSchema->setSqlRelation(QSqlRelation{dbMetaData.SchemaTable,
-                                        dbMetaData.SchemaTableNameColumn,
-                                        dbMetaData.SchemaTableNameColumn});
+                                                    dbMetaData.SchemaTableNameColumn,
+                                                    dbMetaData.SchemaTableNameColumn});
     ui->cb_TableSchema->setData("public");
 
     ui->lv_Tables->setModel(m_schemaTablesModel);

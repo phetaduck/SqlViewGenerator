@@ -12,41 +12,26 @@
 class SqlTableModel;
 class AsyncSqlTableModel;
 
-/**
- * @class Менеджер шареных моделей.
- */
 namespace ModelManager
 {
-    /**
-     * Фильтрующая прокси модель
-     */
     class ValueFilterModel : public QSortFilterProxyModel
     {
     public:
 
         using QSortFilterProxyModel::QSortFilterProxyModel;
-
-        /**
-         * @brief Отфильтровать пользователей по идентификатору значению
-         */
         void setFilterByValue(const QVariant& value);
 
     protected:
-        /** Переопределенный метод базового класса */
         bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
 
     private:
-        QVariant m_filterValue; ///< Значение для фильтрации
+        QVariant m_filterValue;
     };
 
     template<typename T>
     struct StaticCache {
         QHash<QString, std::shared_ptr<T>> ModelsMap;
     };
-    /** Создает новую модель и добавляет ее в пул если еще не создана,
-     * возвращает уже существующуюю в противном случае.
-     * Если класс Т наследник SearchableSqlTableModel - все в порядке.
-     * В противном случае возвращаемый тип не отпределен. */
     template<typename T>
     extern typename std::enable_if_t<std::is_base_of_v<SqlTableModel, T>, T*> /** */
     sharedSqlTableModel(const QString& tableName) {
@@ -60,9 +45,6 @@ namespace ModelManager
         }
         return cache.ModelsMap[tableName].get();
     }
-
-    /** @brief Функция для удобства, принимает ссылку на поле класса или переменную
-     * и присваеивает ей указатель на вновь созданный элемент. */
     template<typename B>
     extern void sharedSqlTableModel(B& model, const QString& tableName) {
         auto cache = [](B& model, const QString& tableName) {

@@ -30,21 +30,7 @@ public:
     auto tableSettings(const QString& key) const -> SqlSettings;
     void setDefaultTableSettings(const SqlSettings& value);
     auto defaultTableSettings() const -> SqlSettings;
-//    auto lastDatabase() -> QString;
-//    void setLastDatabase(const QString& value);
-//    auto lastSchema() -> QString;
-//    void setLastSchema(const QString& value);
-
-    /**
-     * @brief метод установки пути к классификаторам
-     * @param путь к классификаторам
-     */
     void setClassifiersPath(const QString value);
-
-    /**
-     * @brief метод получения пути к классификаторам
-     * @return путь к классификаторам
-     */
     QString getClassifiersPath() const;
 
 private:
